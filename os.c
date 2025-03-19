@@ -1101,6 +1101,412 @@ void print_current_path(partition_t *part) {
     printf("\n");
 }
 
+
+int copy_file(partition_t *part, const char *source, const char *destination) {
+    // Trouver le fichier source dans le répertoire courant
+    int source_inode = find_file_in_dir(part, part->current_dir_inode, source);
+    if (source_inode == -1) {
+        printf("Erreur: Fichier source '%s' non trouvé\n", source);
+        return -1;
+    }
+    
+    // Vérifier si l'utilisateur a le droit de lire le fichier source
+    if (!check_permission(part, source_inode, 4)) { // 4 = permission de lecture
+        printf("Erreur: Permission de lecture refusée pour '%s'\n", source);
+        return -1;
+    }
+    
+    // Vérifier si le fichier source est un répertoire
+    if (part->inodes[source_inode].mode & 040000) {
+        printf("Erreur: La copie de répertoires n'est pas supportée\n");
+        return -1;
+    }
+    
+    // Vérifier si le fichier destination existe déjà
+    int dest_inode = find_file_in_dir(part, part->current_dir_inode, destination);
+    if (dest_inode != -1) {
+        printf("Erreur: Le fichier destination '%s' existe déjà\n", destination);
+        return -1;
+    }
+    
+    // Créer le nouveau fichier avec les mêmes permissions que l'original
+    int mode = part->inodes[source_inode].mode & 07777; // Garder seulement les bits de permission
+    dest_inode = create_file(part, destination, 0100000 | mode); // 0100000 = fichier régulier
+    
+    if (dest_inode == -1) {
+        printf("Erreur: Impossible de créer le fichier destination '%s'\n", destination);
+        return -1;
+    }
+    
+    // Copier les données du fichier source vers le fichier destination
+    int source_size = part->inodes[source_inode].size;
+    part->inodes[dest_inode].size = source_size;
+    
+    // Copier les blocs de données directs
+    for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
+        int source_block = part->inodes[source_inode].direct_blocks[i];
+        if (source_block == -1) break;
+        
+        // Allouer un nouveau bloc pour la destination
+        int dest_block = allocate_block(part);
+        if (dest_block == -1) {
+            printf("Erreur: Plus de blocs disponibles\n");
+            delete_file(part, destination);
+            return -1;
+        }
+        
+        // Copier les données du bloc
+        memcpy(part->data + dest_block * BLOCK_SIZE, 
+               part->data + source_block * BLOCK_SIZE, 
+               BLOCK_SIZE);
+        
+        // Associer le bloc au fichier destination
+        part->inodes[dest_inode].direct_blocks[i] = dest_block;
+    }
+    
+    // Copier le bloc indirect si nécessaire
+    if (part->inodes[source_inode].indirect_block != -1) {
+        // Allouer un nouveau bloc indirect pour la destination
+        int dest_indirect = allocate_block(part);
+        if (dest_indirect == -1) {
+            printf("Erreur: Plus de blocs disponibles\n");
+            delete_file(part, destination);
+            return -1;
+        }
+        
+        part->inodes[dest_inode].indirect_block = dest_indirect;
+        
+        // Copier la table d'indirection
+        int *source_table = (int *)(part->data + part->inodes[source_inode].indirect_block * BLOCK_SIZE);
+        int *dest_table = (int *)(part->data + dest_indirect * BLOCK_SIZE);
+        
+        for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
+            if (source_table[i] == -1) break;
+            
+            // Allouer un nouveau bloc pour les données
+            int dest_block = allocate_block(part);
+            if (dest_block == -1) {
+                printf("Erreur: Plus de blocs disponibles\n");
+                delete_file(part, destination);
+                return -1;
+            }
+            
+            // Copier les données du bloc
+            memcpy(part->data + dest_block * BLOCK_SIZE, 
+                   part->data + source_table[i] * BLOCK_SIZE, 
+                   BLOCK_SIZE);
+            
+            // Mettre à jour la table d'indirection
+            dest_table[i] = dest_block;
+        }
+    }
+    
+    // Mettre à jour les propriétaires et les temps
+    part->inodes[dest_inode].uid = part->current_user.id;
+    part->inodes[dest_inode].gid = part->current_user.group_id;
+    part->inodes[dest_inode].atime = time(NULL);
+    part->inodes[dest_inode].mtime = time(NULL);
+    part->inodes[dest_inode].ctime = time(NULL);
+    
+    printf("Fichier '%s' copié vers '%s'\n", source, destination);
+    return 0;
+}
+
+
+// Structure pour stocker les composants d'un chemin
+typedef struct {
+    char components[MAX_NAME_LENGTH][MAX_NAME_LENGTH];
+    int num_components;
+    int is_absolute;  // 1 si le chemin commence par '/', 0 sinon
+} path_components_t;
+
+// Fonction pour diviser un chemin en composants
+void split_path(const char *path, path_components_t *components) {
+    components->num_components = 0;
+    components->is_absolute = (path[0] == '/');
+    
+    // Copier le chemin pour ne pas modifier l'original
+    char path_copy[MAX_NAME_LENGTH * MAX_NAME_LENGTH];
+    strncpy(path_copy, path, sizeof(path_copy) - 1);
+    path_copy[sizeof(path_copy) - 1] = '\0';
+    
+    // Diviser le chemin en composants
+    char *token = strtok(path_copy, "/");
+    while (token != NULL && components->num_components < MAX_NAME_LENGTH) {
+        strncpy(components->components[components->num_components], token, MAX_NAME_LENGTH - 1);
+        components->components[components->num_components][MAX_NAME_LENGTH - 1] = '\0';
+        components->num_components++;
+        token = strtok(NULL, "/");
+    }
+}
+
+// Fonction pour résoudre un chemin relatif ou absolu et obtenir l'inode correspondant
+int resolve_path(partition_t *part, const char *path, int *parent_inode) {
+    // Diviser le chemin en composants
+    path_components_t components;
+    split_path(path, &components);
+    
+    // Définir le répertoire de départ
+    int current_inode = components.is_absolute ? 0 : part->current_dir_inode;
+    int prev_inode = -1;
+    
+    // Parcourir les composants du chemin
+    for (int i = 0; i < components.num_components; i++) {
+        // Gérer les cas spéciaux
+        if (strcmp(components.components[i], ".") == 0) {
+            continue;  // Rester dans le répertoire courant
+        } else if (strcmp(components.components[i], "..") == 0) {
+            // Remonter au répertoire parent
+            int parent = -1;
+            
+            // Trouver l'entrée ".." dans le répertoire courant
+            for (int j = 0; j < NUM_DIRECT_BLOCKS; j++) {
+                int block_num = part->inodes[current_inode].direct_blocks[j];
+                if (block_num == -1) continue;
+                
+                dir_entry_t *dir_entries = (dir_entry_t *)(part->data + block_num * BLOCK_SIZE);
+                int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
+                
+                for (int k = 0; k < num_entries; k++) {
+                    if (dir_entries[k].inode_num != 0 && strcmp(dir_entries[k].name, "..") == 0) {
+                        parent = dir_entries[k].inode_num;
+                        break;
+                    }
+                }
+                if (parent != -1) break;
+            }
+            
+            if (parent != -1) {
+                prev_inode = current_inode;
+                current_inode = parent;
+            }
+            continue;
+        }
+        
+        // Dernier composant du chemin
+        if (i == components.num_components - 1) {
+            if (parent_inode != NULL) {
+                *parent_inode = current_inode;
+            }
+            
+            // Vérifier si le dernier composant existe
+            int file_inode = find_file_in_dir(part, current_inode, components.components[i]);
+            return file_inode;  // Retourne -1 si non trouvé
+        }
+        
+        // Trouver le répertoire correspondant au composant actuel
+        int next_inode = find_file_in_dir(part, current_inode, components.components[i]);
+        if (next_inode == -1) {
+            return -1;  // Composant non trouvé
+        }
+        
+        // Vérifier si c'est un répertoire
+        if (!(part->inodes[next_inode].mode & 040000)) {
+            return -1;  // Pas un répertoire
+        }
+        
+        // Passer au répertoire suivant
+        prev_inode = current_inode;
+        current_inode = next_inode;
+    }
+    
+    // Si le chemin se termine par '/', on retourne l'inode du répertoire
+    if (parent_inode != NULL) {
+        *parent_inode = prev_inode != -1 ? prev_inode : 0;
+    }
+    
+    return current_inode;
+}
+
+// Fonction pour extraire le nom de fichier d'un chemin
+void extract_filename(const char *path, char *filename) {
+    const char *last_slash = strrchr(path, '/');
+    if (last_slash != NULL) {
+        strcpy(filename, last_slash + 1);
+    } else {
+        strcpy(filename, path);
+    }
+}
+
+// Fonction améliorée pour déplacer un fichier avec support des chemins relatifs
+int move_file_with_paths(partition_t *part, const char *source_path, const char *dest_path) {
+    // Variables pour stocker les composants du chemin
+    int source_parent_inode = -1;
+    int dest_parent_inode = -1;
+    char source_filename[MAX_NAME_LENGTH];
+    char dest_filename[MAX_NAME_LENGTH];
+    
+    // Extraire le nom du fichier source
+    extract_filename(source_path, source_filename);
+    
+    // Résoudre le chemin source
+    int source_inode = resolve_path(part, source_path, &source_parent_inode);
+    if (source_inode == -1) {
+        printf("Erreur: Fichier source '%s' non trouvé\n", source_path);
+        return -1;
+    }
+    
+    // Vérifier si l'utilisateur a les droits nécessaires sur le fichier source
+    if (!check_permission(part, source_inode, 2)) { // 2 = permission d'écriture
+        printf("Erreur: Permission d'écriture refusée pour '%s'\n", source_path);
+        return -1;
+    }
+    
+    // Vérifier si l'utilisateur a les droits d'écriture sur le répertoire parent source
+    if (!check_permission(part, source_parent_inode, 2)) {
+        printf("Erreur: Permission d'écriture refusée pour le répertoire source\n");
+        return -1;
+    }
+    
+    // Extraire le nom du fichier destination
+    extract_filename(dest_path, dest_filename);
+    
+    // Cas où le chemin de destination se termine par '/'
+    if (dest_path[strlen(dest_path) - 1] == '/') {
+        strcpy(dest_filename, source_filename);
+    }
+    
+    // Résoudre le chemin de destination
+    int dest_dir_inode = -1;
+    char dest_dir_path[MAX_NAME_LENGTH * MAX_NAME_LENGTH];
+    
+    // Si le chemin de destination contient '/', on extrait le répertoire
+    const char *last_slash = strrchr(dest_path, '/');
+    if (last_slash != NULL) {
+        int prefix_len = last_slash - dest_path;
+        strncpy(dest_dir_path, dest_path, prefix_len);
+        dest_dir_path[prefix_len] = '\0';
+        
+        // Si le chemin est vide, on utilise "/"
+        if (prefix_len == 0) {
+            strcpy(dest_dir_path, "/");
+        }
+        
+        dest_dir_inode = resolve_path(part, dest_dir_path, &dest_parent_inode);
+    } else {
+        // Si pas de '/', on utilise le répertoire courant
+        dest_dir_inode = part->current_dir_inode;
+        dest_parent_inode = -1;  // Non utilisé dans ce cas
+    }
+    
+    if (dest_dir_inode == -1) {
+        printf("Erreur: Répertoire de destination non trouvé\n");
+        return -1;
+    }
+    
+    // Vérifier si le répertoire de destination est bien un répertoire
+    if (!(part->inodes[dest_dir_inode].mode & 040000)) {
+        printf("Erreur: La destination n'est pas un répertoire\n");
+        return -1;
+    }
+    
+    // Vérifier si l'utilisateur a les droits d'écriture sur le répertoire de destination
+    if (!check_permission(part, dest_dir_inode, 2)) {
+        printf("Erreur: Permission d'écriture refusée pour le répertoire de destination\n");
+        return -1;
+    }
+    
+    // Vérifier si le fichier destination existe déjà
+    int dest_file_inode = find_file_in_dir(part, dest_dir_inode, dest_filename);
+    if (dest_file_inode != -1) {
+        printf("Erreur: Le fichier destination '%s' existe déjà\n", dest_filename);
+        return -1;
+    }
+    
+    // Trouver un bloc libre dans le répertoire de destination
+    int dir_block = -1;
+    int entry_index = -1;
+    dir_entry_t *dir_entries = NULL;
+    
+    for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
+        int block_num = part->inodes[dest_dir_inode].direct_blocks[i];
+        if (block_num == -1) {
+            // Allouer un nouveau bloc si nécessaire
+            block_num = allocate_block(part);
+            if (block_num == -1) {
+                printf("Erreur: Plus de blocs disponibles\n");
+                return -1;
+            }
+            part->inodes[dest_dir_inode].direct_blocks[i] = block_num;
+            
+            // Initialiser le nouveau bloc de répertoire
+            dir_entries = (dir_entry_t *)(part->data + block_num * BLOCK_SIZE);
+            memset(dir_entries, 0, BLOCK_SIZE);
+            
+            dir_block = block_num;
+            entry_index = 0;
+            break;
+        }
+        
+        // Chercher une entrée libre dans les blocs existants
+        dir_entries = (dir_entry_t *)(part->data + block_num * BLOCK_SIZE);
+        int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
+        
+        for (int j = 0; j < num_entries; j++) {
+            if (dir_entries[j].inode_num == 0) {
+                dir_block = block_num;
+                entry_index = j;
+                break;
+            }
+        }
+        
+        if (dir_block != -1) break;
+    }
+    
+    if (dir_block == -1) {
+        printf("Erreur: Répertoire de destination plein\n");
+        return -1;
+    }
+    
+    // Créer l'entrée de répertoire pour le fichier de destination
+    dir_entries = (dir_entry_t *)(part->data + dir_block * BLOCK_SIZE);
+    dir_entries[entry_index].inode_num = source_inode;
+    strncpy(dir_entries[entry_index].name, dest_filename, MAX_NAME_LENGTH - 1);
+    dir_entries[entry_index].name[MAX_NAME_LENGTH - 1] = '\0';
+    
+    // Mettre à jour la taille du répertoire de destination
+    part->inodes[dest_dir_inode].size += sizeof(dir_entry_t);
+    part->inodes[dest_dir_inode].mtime = time(NULL);
+    
+    // Supprimer l'entrée de répertoire pour le fichier source
+    for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
+        int block_num = part->inodes[source_parent_inode].direct_blocks[i];
+        if (block_num == -1) continue;
+        
+        dir_entries = (dir_entry_t *)(part->data + block_num * BLOCK_SIZE);
+        int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
+        
+        for (int j = 0; j < num_entries; j++) {
+            if (dir_entries[j].inode_num == source_inode && strcmp(dir_entries[j].name, source_filename) == 0) {
+                // Effacer cette entrée
+                memset(&dir_entries[j], 0, sizeof(dir_entry_t));
+                
+                // Mettre à jour le temps de modification du répertoire source
+                part->inodes[source_parent_inode].mtime = time(NULL);
+                
+                printf("Fichier '%s' déplacé vers '%s'\n", source_path, dest_path);
+                return 0;
+            }
+        }
+    }
+    
+    printf("Avertissement: Entrée source non trouvée dans le répertoire\n");
+    return 0;
+}
+
+// Modification de la fonction main pour ajouter la commande mv avec support des chemins
+// Ajoutez ce code à la fonction main existante, juste avant le dernier else
+/*
+        else if (strncmp(command, "mv ", 3) == 0) {
+            sscanf(command + 3, "%s %s", param1, param2);
+            move_file_with_paths(partition, param1, param2);
+        }
+*/
+
+// Ajoutez aussi cette ligne dans la section "help" de la fonction main
+// printf("  mv src dst    - Déplace un fichier (supporte les chemins relatifs et absolus)\n");
+
+
 // Interface utilisateur simple (fonction main)
 int main() {
     // Créer et initialiser la partition
@@ -1150,6 +1556,8 @@ int main() {
             printf("  chown uid:gid nom - Change le propriétaire d'un fichier\n");
             printf("  su uid gid    - Change d'utilisateur\n");
             printf("  pwd           - Affiche le chemin courant\n");
+            printf("  cp src dst    - Copie un fichier\n");
+            printf("  mv src dst    - Déplace un fichier (supporte les chemins relatifs et absolus)\n");
             printf("  exit          - Quitte le programme\n");
         }
         else if (strcmp(command, "ls") == 0) {
@@ -1192,6 +1600,14 @@ int main() {
         }
         else if (strcmp(command, "pwd") == 0) {
             print_current_path(partition);
+        }
+    else if (strncmp(command, "cp ", 3) == 0) {
+            sscanf(command + 3, "%s %s", param1, param2);
+            copy_file(partition, param1, param2);
+        }
+    else if (strncmp(command, "mv ", 3) == 0) {
+            sscanf(command + 3, "%s %s", param1, param2);
+            move_file_with_paths(partition, param1, param2);
         }
         else {
             printf("Commande inconnue. Tapez 'help' pour voir les commandes disponibles.\n");
