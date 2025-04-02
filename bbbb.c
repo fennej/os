@@ -1554,7 +1554,7 @@ int resolve_path(partition_t *part, const char *path, int *parent_inode) {
     split_path(path, &components);
     
     // Définir le répertoire de départ
-    int current_inode = components.is_absolute ? 0 : part->current_dir_inode;
+    int current_inode = components.is_absolute ? 1 : part->current_dir_inode;
     int prev_inode = -1;
     
     // Parcourir les composants du chemin
