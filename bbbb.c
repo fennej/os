@@ -2039,12 +2039,13 @@ int main() {
             printf("  cp src dst    - Copie un fichier\n");
             printf("  mv src dst    - Déplace un fichier (supporte les chemins relatifs et absolus)\n");
             printf("  exit          - Quitte le programme\n");
-        }else if(strncmp(command, "ls -l ", 6) == 0){
-            sscanf(command + 6, "%s", param1);
-            list_directory(partition,param1);
-        }
-        else if (strcmp(command, "ls") == 0) {
-            list_directory(partition,NULL);
+        } else if (strncmp(command, "ls", 2) == 0) {
+            if (sscanf(command + 2, "%s", param1) == 1) {
+                list_directory(partition, param1); // Exécuter avec l'argument s'il existe
+            } else {
+                list_directory(partition, NULL); // Sinon, exécuter sans argument
+            }
+            printf("\n");
         }
         else if (strncmp(command, "mkdir ", 6) == 0) {
             sscanf(command + 6, "%s", param1);
