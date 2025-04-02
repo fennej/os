@@ -2021,7 +2021,7 @@ int main() {
         } else {
             content[0] = '\0';  // Initialiser la chaîne vide
             
-            printf("Entrez le contenu du fichier (terminez par Ctrl+D ou Ctrl+Z):\n");
+            printf("Entrez le contenu du fichier (terminez par un . sur une ligne vide):\n");
             
             char buffer[1024];
             while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
