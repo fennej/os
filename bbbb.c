@@ -2001,6 +2001,9 @@ int main() {
     
     printf("Système de fichiers initialisé. Tapez 'help' pour voir les commandes disponibles.\n");
     
+    create_file(partition,"root",040777);
+    change_directory(partition,"root");
+
     while (running) {
         // Afficher l'invite de commande
         printf("[root@myfs ");
