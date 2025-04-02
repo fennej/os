@@ -282,6 +282,7 @@ int check_permission(partition_t *part, int inode_num, int perm_bit) {
     }
     
     int mode = part->inodes[inode_num].mode;
+    printf("mode : %o",mode);
     int user_type;
     
     // Déterminer le type d'utilisateur (propriétaire, groupe, autre)
@@ -292,6 +293,7 @@ int check_permission(partition_t *part, int inode_num, int perm_bit) {
     } else {
         user_type = USER_OTHER;
     }
+    printf("user type : %d",user_type);
     
     // Vérifier les permissions
     int permission_mask = 0;
@@ -694,7 +696,7 @@ int delete_file(partition_t *part, const char *name) {
     }
     
     // Vérifier les permissions du répertoire parent pour l'écriture
-    if (!check_permission(part, part->current_dir_inode, 2)) {
+    if (!check_permission(part, find_file_in_dir(part,part->current_dir_inode,name), 2)) {
         printf("Erreur: Permissions insuffisantes pour supprimer depuis ce répertoire\n");
         return -1;
     }
@@ -1290,7 +1292,7 @@ int chmod_file(partition_t *part, const char *name, int mode) {
     // Mettre à jour le temps de modification
     part->inodes[inode_num].ctime = time(NULL);
     
-    printf("Permissions modifiées pour '%s'\n", name);
+    printf("Permissions modifiées pour '%s' vers %o\n", name,part->inodes[inode_num].mode);
     return 0;
 }
 
