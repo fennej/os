@@ -1669,7 +1669,7 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
     part->inodes[dest_dir_inode].mtime = time(NULL);
     
 
-    if(mode=!COPYMODE){
+    if(mode==COPYMODE){
         printf("la copy est realise ");
         return 0;
     }
