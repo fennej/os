@@ -30,6 +30,10 @@
 #define USER_GROUP 1
 #define USER_OTHER 2
 
+
+#define COPYMODE 0
+#define MOVMODE 1
+
 // Structure pour la carte des blocs (bitmap)
 typedef struct {
     unsigned char bitmap[MAX_BLOCKS-USERSAPCE_OFSET / 8 + 1];  // Chaque bit représente un bloc
@@ -119,7 +123,6 @@ void print_current_path(partition_t *part);
 void init_partition(partition_t *part) {
 
 
-    printf("iciiiiiiiii");
     // Initialiser les pointeurs vers les zones dans part->space->data
     part->superblock = (superblock_t*)(part->space->data + SUPERBLOCK_OFSET * BLOCK_SIZE);
     
@@ -282,7 +285,6 @@ int check_permission(partition_t *part, int inode_num, int perm_bit) {
     }
     
     int mode = part->inodes[inode_num].mode;
-    printf("mode : %o",mode);
     int user_type;
     
     // Déterminer le type d'utilisateur (propriétaire, groupe, autre)
@@ -293,7 +295,6 @@ int check_permission(partition_t *part, int inode_num, int perm_bit) {
     } else {
         user_type = USER_OTHER;
     }
-    printf("user type : %d",user_type);
     
     // Vérifier les permissions
     int permission_mask = 0;
@@ -696,7 +697,7 @@ int delete_file(partition_t *part, const char *name) {
     }
     
     // Vérifier les permissions du répertoire parent pour l'écriture
-    if (!check_permission(part, find_file_in_dir(part,part->current_dir_inode,name), 2)) {
+    if (!check_permission(part, part->current_dir_inode, 2)) {
         printf("Erreur: Permissions insuffisantes pour supprimer depuis ce répertoire\n");
         return -1;
     }
@@ -752,7 +753,8 @@ int resolve_symlink(partition_t *part, int inode_num) {
     int max_depth = 10;  // Limiter la profondeur pour éviter les boucles infinies
     
     for (int depth = 0; depth < max_depth; depth++) {
-        if (!(part->inodes[inode_num].mode & 0120000)) {  // Pas un lien symbolique
+
+        if ((part->inodes[inode_num].mode & 0170000)!=0120000) { 
             return inode_num;
         }
         
@@ -762,9 +764,9 @@ int resolve_symlink(partition_t *part, int inode_num) {
         }
         
         char target_name[MAX_NAME_LENGTH];
-        strncpy(target_name, part->space->data + data_block * BLOCK_SIZE, MAX_NAME_LENGTH - 1);
+        strncpy(target_name, part->space->data +( data_block+USERSAPCE_OFSET) * BLOCK_SIZE, MAX_NAME_LENGTH - 1);
         target_name[MAX_NAME_LENGTH - 1] = '\0';
-        
+
         int target_inode = find_file_in_dir(part, part->current_dir_inode, target_name);
         if (target_inode == -1) {
             printf("Erreur: Cible du lien '%s' non trouvée\n", target_name);
@@ -1045,6 +1047,7 @@ int change_directory(partition_t *part, const char *path) {
             // Si c'est un lien symbolique, le résoudre
             if (part->inodes[inode_num].mode & 0120000) {
                 printf("Suivi du lien symbolique '%s'...\n", token);
+                printf("resolution du lin sym avec %d ",inode_num);
                 inode_num = resolve_symlink(part, inode_num);
                 if (inode_num == -1) {
                     part->current_dir_inode = original_dir_inode;  // Restaurer la position originale
@@ -1290,7 +1293,7 @@ int chmod_file(partition_t *part, const char *name, int mode) {
     // Mettre à jour le temps de modification
     part->inodes[inode_num].ctime = time(NULL);
     
-    printf("Permissions modifiées pour '%s' vers %o\n", name,part->inodes[inode_num].mode);
+    printf("Permissions modifiées pour '%s'\n", name);
     return 0;
 }
 
@@ -1410,116 +1413,6 @@ void print_current_path(partition_t *part) {
     printf("\n");
 }
 
-int copy_file(partition_t *part, const char *source, const char *destination) {
-    // Trouver le fichier source dans le répertoire courant
-    int source_inode = find_file_in_dir(part, part->current_dir_inode, source);
-    if (source_inode == -1) {
-        printf("Erreur: Fichier source '%s' non trouvé\n", source);
-        return -1;
-    }
-    
-    // Vérifier si l'utilisateur a le droit de lire le fichier source
-    if (!check_permission(part, source_inode, 4)) { // 4 = permission de lecture
-        printf("Erreur: Permission de lecture refusée pour '%s'\n", source);
-        return -1;
-    }
-    
-    // Vérifier si le fichier source est un répertoire
-    if (part->inodes[source_inode].mode & 040000) {
-        printf("Erreur: La copie de répertoires n'est pas supportée\n");
-        return -1;
-    }
-    
-    // Vérifier si le fichier destination existe déjà
-    int dest_inode = find_file_in_dir(part, part->current_dir_inode, destination);
-    if (dest_inode != -1) {
-        printf("Erreur: Le fichier destination '%s' existe déjà\n", destination);
-        return -1;
-    }
-    
-    // Créer le nouveau fichier avec les mêmes permissions que l'original
-    int mode = part->inodes[source_inode].mode & 07777; // Garder seulement les bits de permission
-    dest_inode = create_file(part, destination, 0100000 | mode); // 0100000 = fichier régulier
-    
-    if (dest_inode == -1) {
-        printf("Erreur: Impossible de créer le fichier destination '%s'\n", destination);
-        return -1;
-    }
-    
-    // Copier les données du fichier source vers le fichier destination
-    int source_size = part->inodes[source_inode].size;
-    part->inodes[dest_inode].size = source_size;
-    
-    // Copier les blocs de données directs
-    for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
-        int source_block = part->inodes[source_inode].direct_blocks[i];
-        if (source_block == -1) break;
-        
-        // Allouer un nouveau bloc pour la destination
-        int dest_block = allocate_block(part);
-        if (dest_block == -1) {
-            printf("Erreur: Plus de blocs disponibles\n");
-            delete_file(part, destination);
-            return -1;
-        }
-        
-        // Copier les données du bloc
-        memcpy(part->space->data + dest_block * BLOCK_SIZE, 
-               part->space->data + source_block * BLOCK_SIZE, 
-               BLOCK_SIZE);
-        
-        // Associer le bloc au fichier destination
-        part->inodes[dest_inode].direct_blocks[i] = dest_block;
-    }
-    
-    // Copier le bloc indirect si nécessaire
-    if (part->inodes[source_inode].indirect_block != -1) {
-        // Allouer un nouveau bloc indirect pour la destination
-        int dest_indirect = allocate_block(part);
-        if (dest_indirect == -1) {
-            printf("Erreur: Plus de blocs disponibles\n");
-            delete_file(part, destination);
-            return -1;
-        }
-        
-        part->inodes[dest_inode].indirect_block = dest_indirect;
-        
-        // Copier la table d'indirection
-        int *source_table = (int *)(part->space->data + part->inodes[source_inode].indirect_block * BLOCK_SIZE);
-        int *dest_table = (int *)(part->space->data + dest_indirect * BLOCK_SIZE);
-        
-        for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
-            if (source_table[i] == -1) break;
-            
-            // Allouer un nouveau bloc pour les données
-            int dest_block = allocate_block(part);
-            if (dest_block == -1) {
-                printf("Erreur: Plus de blocs disponibles\n");
-                delete_file(part, destination);
-                return -1;
-            }
-            
-            // Copier les données du bloc
-            memcpy(part->space->data + dest_block * BLOCK_SIZE, 
-                   part->space->data + source_table[i] * BLOCK_SIZE, 
-                   BLOCK_SIZE);
-            
-            // Mettre à jour la table d'indirection
-            dest_table[i] = dest_block;
-        }
-    }
-    
-    // Mettre à jour les propriétaires et les temps
-    part->inodes[dest_inode].uid = part->current_user.id;
-    part->inodes[dest_inode].gid = part->current_user.group_id;
-    part->inodes[dest_inode].atime = time(NULL);
-    part->inodes[dest_inode].mtime = time(NULL);
-    part->inodes[dest_inode].ctime = time(NULL);
-    
-    printf("Fichier '%s' copié vers '%s'\n", source, destination);
-    return 0;
-}
-
 // Structure pour stocker les composants d'un chemin
 typedef struct {
     char components[MAX_NAME_LENGTH][MAX_NAME_LENGTH];
@@ -1636,7 +1529,7 @@ void extract_filename(const char *path, char *filename) {
 }
 
 // Fonction améliorée pour déplacer un fichier avec support des chemins relatifs
-int move_file_with_paths(partition_t *part, const char *source_path, const char *dest_path) {
+int move_file_with_paths(partition_t *part, const char *source_path, const char *dest_path,int mode) {
     // Variables pour stocker les composants du chemin
     int source_parent_inode = -1;
     int dest_parent_inode = -1;
@@ -1775,6 +1668,11 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
     part->inodes[dest_dir_inode].size += sizeof(dir_entry_t);
     part->inodes[dest_dir_inode].mtime = time(NULL);
     
+
+    if(mode=!COPYMODE){
+        printf("la copy est realise ");
+        return 0;
+    }
     // Supprimer l'entrée de répertoire pour le fichier source
     for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
         int block_num = part->inodes[source_parent_inode].direct_blocks[i];
@@ -1796,6 +1694,7 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
             }
         }
     }
+
     
     printf("Avertissement: Entrée source non trouvée dans le répertoire\n");
     return 0;
@@ -1937,7 +1836,7 @@ void cat_command(partition_t *part, const char *name) {
     int bytes_read = read_from_file(part, name, buffer, sizeof(buffer) - 1);
     if (bytes_read > 0) {
         buffer[bytes_read] = '\0'; // Ajouter un terminateur de chaîne
-        printf("%s", buffer);
+        printf("%s\n", buffer);
     } else if (bytes_read == -1) {
         printf("Erreur: fichier '%s' non trouvé.\n", name);
     } else if (bytes_read == -2) {
@@ -1947,15 +1846,15 @@ void cat_command(partition_t *part, const char *name) {
 
 }
 
-void cat_write_command(partition_t *part, const char *name, const char *content) {
+int cat_write_command(partition_t *part, const char *name, const char *content) {
     int bytes_written = write_to_file(part, name, content, strlen(content));
     if (bytes_written < 0) {
         printf("Erreur lors de l'écriture dans '%s'.\n", name);
+        return -1;
     } else {
         printf("%d octets écrits dans '%s'.\n", bytes_written, name);
     }
-        int inode_num = find_file_in_dir(part, part->current_dir_inode, name);
-        //printf("After write: mode = %o\n", part->inodes[inode_num].mode);
+        return 0;
 }
 
 int main() {
@@ -2091,15 +1990,61 @@ int main() {
         }
         else if (strncmp(command, "cp ", 3) == 0) {
             sscanf(command + 3, "%s %s", param1, param2);
-            copy_file(partition, param1, param2);
+            move_file_with_paths(partition, param1, param2,COPYMODE);
         }
         else if (strncmp(command, "mv ", 3) == 0) {
             sscanf(command + 3, "%s %s", param1, param2);
-            move_file_with_paths(partition, param1, param2);
+            move_file_with_paths(partition, param1, param2,MOVMODE);
  
         }else if(strncmp(command, "cat > ",6 ) == 0){
-            sscanf(command + 6, "%s %s", param1, param2);
-            cat_write_command(partition,param1,param2);
+    // Extraire le nom du fichier en préservant les espaces éventuels
+    char filename[MAX_NAME_LENGTH];
+    int i = 6;  // Position après "cat > "
+    int j = 0;
+    
+    // Ignorer les espaces initiaux
+    while(command[i] == ' ') i++;
+    
+    // Copier le nom du fichier jusqu'à la fin de la commande
+    while(command[i] != '\0' && command[i] != '\n' && j < MAX_NAME_LENGTH - 1) {
+        filename[j++] = command[i++];
+    }
+    filename[j] = '\0';
+    
+    if(strlen(filename) == 0) {
+        printf("Erreur: Nom de fichier requis\n");
+    } else {
+        // Allouer un buffer pour stocker le contenu
+        char *content = malloc(BLOCK_SIZE * NUM_DIRECT_BLOCKS);  // Taille maximale possible
+        if(!content) {
+            printf("Erreur: Mémoire insuffisante\n");
+        } else {
+            content[0] = '\0';  // Initialiser la chaîne vide
+            
+            printf("Entrez le contenu du fichier (terminez par Ctrl+D ou Ctrl+Z):\n");
+            
+            char buffer[1024];
+            while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
+                // Vérifier si la saisie est terminée par un signal spécial
+                if(strcmp(buffer, ".\n") == 0) break;  // Une ligne contenant seulement un point termine la saisie
+                
+                // Ajouter la ligne au contenu
+                if(strlen(content) + strlen(buffer) < BLOCK_SIZE * NUM_DIRECT_BLOCKS) {
+                    strcat(content, buffer);
+                } else {
+                    printf("Avertissement: Taille maximale du fichier atteinte\n");
+                    break;
+                }
+            }
+            
+            // Écrire le contenu dans le fichier
+            if(cat_write_command(partition, filename, content) != 0) {
+                printf("Erreur: Échec d'écriture dans le fichier '%s'\n", filename);
+            }
+            
+            free(content);
+        }
+    }
 
             
         }else if(strncmp(command, "cat ",4 ) == 0){
