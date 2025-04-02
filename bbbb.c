@@ -1087,13 +1087,13 @@ void list_directory(partition_t *part,char* parem) {
         printf("Erreur: Permissions insuffisantes pour lire le contenu de ce répertoire\n");
         return;
     }
+        printf("Droits      Liens  Prop  Groupe     Taille    Date         Nom       inode num\n");
 
     if(parem!=NULL){
     int file_inode = find_file_in_dir(part, part->current_dir_inode, parem);
         if(file_inode==-1){
             printf("le fichier specifie n'existe pas");
         }else{
-        printf("Droits  Liens  Prop  Groupe  Taille       Date       Nom\n");
 char type_char = '-';
       //  printf("After write: mode = %o , num est %d \n", part->inodes[inode_num].mode,inode_num);
 
@@ -1123,19 +1123,18 @@ char type_char = '-';
             strftime(date_str, sizeof(date_str), "%Y-%m-%d %H:%M", tm_info);
             
             // Afficher les informations du fichier
-            printf("%s  %4d  %4d  %5d  %6d  %s  %s", 
+            printf("%s  %4d  %4d  %5d  %6d  %s  %s   %6d", 
                    perm_str, 
                    part->inodes[file_inode].links_count, 
                    part->inodes[file_inode].uid, 
                    part->inodes[file_inode].gid,
                    part->inodes[file_inode].size,
                    date_str,
-                  parem);
+                  parem,
+                  file_inode);
         }
         return;
     }
-
-    printf("Droits  Liens  Prop  Groupe  Taille       Date       Nom\n");
     
     // Parcourir tous les blocs du répertoire
     for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
@@ -1178,15 +1177,15 @@ char type_char = '-';
             strftime(date_str, sizeof(date_str), "%Y-%m-%d %H:%M", tm_info);
             
             // Afficher les informations du fichier
-            printf("%s  %4d  %4d  %5d  %6d  %s  %s", 
+            printf("%s  %4d  %4d  %5d  %6d  %s  %s   %6d", 
                    perm_str, 
                    part->inodes[file_inode].links_count, 
                    part->inodes[file_inode].uid, 
                    part->inodes[file_inode].gid,
                    part->inodes[file_inode].size,
                    date_str,
-                   dir_entries[j].name);
-        printf("After write: mode = %o , num est %d \n", part->inodes[1].mode,1);
+                   dir_entries[j].name,
+                   file_inode);
 
             // Si c'est un lien symbolique, afficher la cible
             if ((part->inodes[file_inode].mode & 0170000) == 0120000){
@@ -1199,7 +1198,6 @@ char type_char = '-';
             printf("\n");
         }
     }
-        printf("After write: mode = %o\n", part->inodes[inode_num].mode);
 
     // Traitement des blocs indirects
     if (part->inodes[part->current_dir_inode].indirect_block != -1) {
