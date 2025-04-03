@@ -2051,7 +2051,7 @@ void sigint_handler(int sig) {
             
             if (scanf("%255s", filename) == 1) {
                 if (global_partition != NULL) {
-                    if (save_partition_to_file(global_partition, filename) == 0) {
+                    if (save_partition(global_partition, filename) == 0) {
                         printf("Sauvegarde réussie, fermeture en cours...\n");
                     } else {
                         printf("Échec de la sauvegarde, fermeture en cours...\n");
@@ -2126,7 +2126,7 @@ int main() {
     // Initialiser la partition
     init_partition(partition);
 
-    setup_signal_handler(&partition);
+    setup_signal_handler(partition);
     
     char command[256];
     char param1[MAX_NAME_LENGTH];
@@ -2158,7 +2158,6 @@ int main() {
             running = 0;
         }
         else if (strcmp(command, "help") == 0) {
-            printf("%d", sizeof(partition_t));
             printf("Commandes disponibles:\n");
             printf("  help          - Affiche cette aide\n");
             printf("  ls            - Liste le contenu du répertoire courant\n");
