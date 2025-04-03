@@ -550,13 +550,13 @@ int allocate_block(partition_t *part) {
 int create_file(partition_t *part, const char *name, int mode) {
     // Vérifier les permissions du répertoire courant pour l'écriture (bit 2)
     if (!check_permission(part, part->current_dir_inode, 2)) {
-        printf("Erreur: Permissions insuffisantes pour créer dans ce répertoire\n");
+        printf("Erreur: Permissions insuffisantes pour creer dans ce repertoire\n");
         return -1;
     }
     
     // Vérifier si le fichier existe déjà
     if (find_file_in_dir(part, part->current_dir_inode, name) != -1) {
-        printf("Erreur: Un fichier avec ce nom existe déjà\n");
+        printf("Erreur: Un fichier avec ce nom existe deja\n");
         return -1;
     }
     
@@ -617,11 +617,11 @@ int create_file(partition_t *part, const char *name, int mode) {
     // Ajouter l'entrée dans le répertoire courant
     if (add_dir_entry(part, part->current_dir_inode, name, inode_num) != 0) {
         free_inode(part, inode_num);
-        printf("Erreur: Impossible d'ajouter l'entrée dans le répertoire\n");
+        printf("Erreur: Impossible d'ajouter l'entrée dans le repertoire\n");
         return -1;
     }
     
-    printf("%s '%s' créé avec succès\n", (mode & 040000) ? "Répertoire" : "Fichier", name);
+    printf("%s '%s' cree avec succes\n", (mode & 040000) ? "Repertoire" : "Fichier", name);
     return inode_num;
 }
 
@@ -629,20 +629,20 @@ int create_file(partition_t *part, const char *name, int mode) {
 int create_symlink(partition_t *part, const char *link_name, const char *target_name) {
     // Vérifier les permissions du répertoire courant pour l'écriture (bit 2)
     if (!check_permission(part, part->current_dir_inode, 2)) {
-        printf("Erreur: Permissions insuffisantes pour créer dans ce répertoire\n");
+        printf("Erreur: Permissions insuffisantes pour creer dans ce repertoire\n");
         return -1;
     }
     
     // Vérifier si le nom du lien existe déjà
     if (find_file_in_dir(part, part->current_dir_inode, link_name) != -1) {
-        printf("Erreur: Un fichier avec ce nom existe déjà\n");
+        printf("Erreur: Un fichier avec ce nom existe deja\n");
         return -1;
     }
     
     // Vérifier si la cible existe
     int target_inode = find_file_in_dir(part, part->current_dir_inode, target_name);
     if (target_inode == -1) {
-        printf("Erreur: Fichier cible '%s' non trouvé\n", target_name);
+        printf("Erreur: Fichier cible '%s' non trouve\n", target_name);
         return -1;
     }
     
@@ -680,11 +680,11 @@ int create_symlink(partition_t *part, const char *link_name, const char *target_
     if (add_dir_entry(part, part->current_dir_inode, link_name, symlink_inode) != 0) {
         free_block(part, data_block);
         free_inode(part, symlink_inode);
-        printf("Erreur: Impossible d'ajouter l'entrée dans le répertoire\n");
+        printf("Erreur: Impossible d'ajouter l'entree dans le repertoire\n");
         return -1;
     }
     
-    printf("Lien symbolique '%s' vers '%s' créé avec succès\n", link_name, target_name);
+    printf("Lien symbolique '%s' vers '%s' créé avec succes\n", link_name, target_name);
     return symlink_inode;
 }
 
@@ -705,7 +705,7 @@ int delete_file(partition_t *part, const char *name) {
     // Trouver le fichier dans le répertoire courant
     int inode_num = find_file_in_dir(part, part->current_dir_inode, name);
     if (inode_num == -1) {
-        printf("Erreur: Fichier '%s' non trouvé\n", name);
+        printf("Erreur: Fichier '%s' non trouve\n", name);
         return -1;
     }
     
@@ -744,7 +744,7 @@ int delete_file(partition_t *part, const char *name) {
     // Supprimer l'entrée du répertoire
     remove_dir_entry(part, part->current_dir_inode, name);
     
-    printf("%s '%s' supprimé avec succès\n", (part->inodes[inode_num].mode & 040000) ? "Répertoire" : "Fichier", name);
+    printf("%s '%s' suppression avec succes\n", (part->inodes[inode_num].mode & 040000) ? "Repertoire" : "Fichier", name);
     return 0;
 }
 
@@ -769,7 +769,7 @@ int resolve_symlink(partition_t *part, int inode_num) {
 
         int target_inode = find_file_in_dir(part, part->current_dir_inode, target_name);
         if (target_inode == -1) {
-            printf("Erreur: Cible du lien '%s' non trouvée\n", target_name);
+            printf("Erreur: Cible du lien '%s' non trouvee\n", target_name);
             return -1;
         }
         
@@ -838,13 +838,13 @@ int resolve_pathAB(partition_t *part, const char *path) {
             }
             
             if (parent_inode == -1) {
-                printf("Erreur: Impossible de trouver le répertoire parent\n");
+                printf("Erreur: Impossible de trouver le repertoire parent\n");
                 return -1;
             }
             
             // Vérifier les permissions
             if (!check_permission(part, parent_inode, 1)) {  // Besoin de permission d'exécution
-                printf("Erreur: Permissions insuffisantes pour accéder au répertoire parent\n");
+                printf("Erreur: Permissions insuffisantes pour acceder au repertoire parent\n");
                 return -1;
             }
             
@@ -857,7 +857,7 @@ int resolve_pathAB(partition_t *part, const char *path) {
             // Chercher ce composant dans le répertoire courant
             int inode_num = find_file_in_dir(part, current_inode, token);
             if (inode_num == -1) {
-                printf("Erreur: '%s' non trouvé\n", token);
+                printf("Erreur: '%s' non trouve\n", token);
                 return -1;
             }
             
@@ -876,12 +876,12 @@ int resolve_pathAB(partition_t *part, const char *path) {
                 // Ce n'est pas le dernier composant, nous avons besoin de permission d'exécution
                 // Vérifier si c'est un répertoire
                 if (!(part->inodes[inode_num].mode & 040000)) {
-                    printf("Erreur: '%s' n'est pas un répertoire\n", token);
+                    printf("Erreur: '%s' n'est pas un repertoire\n", token);
                     return -1;
                 }
                 
                 if (!check_permission(part, inode_num, 1)) {  // Besoin de permission d'exécution
-                    printf("Erreur: Permissions insuffisantes pour accéder à '%s'\n", token);
+                    printf("Erreur: Permissions insuffisantes pour acceder à '%s'\n", token);
                     return -1;
                 }
             }
@@ -921,19 +921,19 @@ int change_directory(partition_t *part, const char *path) {
         
         // Vérifier si c'est un répertoire
         if (!(part->inodes[target_inode].mode & 040000)) {
-            printf("Erreur: '%s' n'est pas un répertoire\n", path);
+            printf("Erreur: '%s' n'est pas un repertoire\n", path);
             return -1;
         }
         
         // Vérifier les permissions pour entrer dans le répertoire
         if (!check_permission(part, target_inode, 1)) {  // Besoin de permission d'exécution
-            printf("Erreur: Permissions insuffisantes pour accéder à '%s'\n", path);
+            printf("Erreur: Permissions insuffisantes pour acceder à '%s'\n", path);
             return -1;
         }
         
         // Tout est bon, changer de répertoire
         part->current_dir_inode = target_inode;
-        printf("Changement vers le répertoire '%s' réussi\n", path);
+        printf("Changement vers le repertoire '%s' reussi\n", path);
         return 0;
     }
     
@@ -974,18 +974,18 @@ int change_directory(partition_t *part, const char *path) {
         }
         
         if (parent_inode == -1) {
-            printf("Erreur: Impossible de trouver le répertoire parent\n");
+            printf("Erreur: Impossible de trouver le repertoire parent\n");
             return -1;
         }
         
         // Vérifier les permissions
         if (!check_permission(part, parent_inode, 1)) {
-            printf("Erreur: Permissions insuffisantes pour accéder au répertoire parent\n");
+            printf("Erreur: Permissions insuffisantes pour accéder au repertoire parent\n");
             return -1;
         }
         
         part->current_dir_inode = parent_inode;
-        printf("Changement vers le répertoire parent réussi\n");
+        printf("Changement vers le repertoire parent reussi\n");
         return 0;
     }
     
@@ -1021,14 +1021,14 @@ int change_directory(partition_t *part, const char *path) {
             }
             
             if (parent_inode == -1) {
-                printf("Erreur: Impossible de trouver le répertoire parent\n");
+                printf("Erreur: Impossible de trouver le repertoire parent\n");
                 part->current_dir_inode = original_dir_inode;  // Restaurer la position originale
                 return -1;
             }
             
             // Vérifier les permissions
             if (!check_permission(part, parent_inode, 1)) {
-                printf("Erreur: Permissions insuffisantes pour accéder au répertoire parent\n");
+                printf("Erreur: Permissions insuffisantes pour acceder au repertoire parent\n");
                 part->current_dir_inode = original_dir_inode;  // Restaurer la position originale
                 return -1;
             }
@@ -1039,7 +1039,7 @@ int change_directory(partition_t *part, const char *path) {
         else {
             int inode_num = find_file_in_dir(part, part->current_dir_inode, token);
             if (inode_num == -1) {
-                printf("Erreur: '%s' non trouvé\n", token);
+                printf("Erreur: '%s' non trouve\n", token);
                 part->current_dir_inode = original_dir_inode;  // Restaurer la position originale
                 return -1;
             }
@@ -1064,7 +1064,7 @@ int change_directory(partition_t *part, const char *path) {
             
             // Vérifier les permissions
             if (!check_permission(part, inode_num, 1)) {
-                printf("Erreur: Permissions insuffisantes pour accéder à '%s'\n", token);
+                printf("Erreur: Permissions insuffisantes pour acceder à '%s'\n", token);
                 part->current_dir_inode = original_dir_inode;  // Restaurer la position originale
                 return -1;
             }
@@ -1080,7 +1080,7 @@ int change_directory(partition_t *part, const char *path) {
         token = strtok(NULL, "/");
     }
     
-    printf("Changement vers le répertoire '%s' réussi\n", path);
+    printf("Changement vers le repertoire '%s' reussi\n", path);
     return 0;
 }
 // Fonction pour lister le contenu d'un répertoire
@@ -1089,7 +1089,7 @@ void list_directory(partition_t *part,char* parem) {
    //     printf("After write: mode = %o , num est %d \n", part->inodes[inode_num].mode,inode_num);
     // Vérifier les permissions pour lire le répertoire (bit 4 = r)
     if (!check_permission(part, part->current_dir_inode, 4)) {
-        printf("Erreur: Permissions insuffisantes pour lire le contenu de ce répertoire\n");
+        printf("Erreur: Permissions insuffisantes pour lire le contenu de ce repertoire\n");
         return;
     }
         printf("Droits      Liens  Prop  Groupe     Taille    Date         Nom       inode num\n");
@@ -1182,7 +1182,7 @@ char type_char = '-';
             strftime(date_str, sizeof(date_str), "%Y-%m-%d %H:%M", tm_info);
             
             // Afficher les informations du fichier
-            printf("%s  %4d  %4d  %5d  %6d  %s  %s   %6d", 
+            printf("%s  %4d  %4d  %5d  %6d  %s  %s   %10d", 
                    perm_str, 
                    part->inodes[file_inode].links_count, 
                    part->inodes[file_inode].uid, 
@@ -1274,13 +1274,13 @@ int chmod_file(partition_t *part, const char *name, int mode) {
     // Trouver le fichier dans le répertoire courant
     int inode_num = find_file_in_dir(part, part->current_dir_inode, name);
     if (inode_num == -1) {
-        printf("Erreur: Fichier '%s' non trouvé\n", name);
+        printf("Erreur: Fichier '%s' non trouve\n", name);
         return -1;
     }
     
     // Vérifier si l'utilisateur est le propriétaire du fichier ou root
     if (part->current_user.id != 0 && part->current_user.id != part->inodes[inode_num].uid) {
-        printf("Erreur: Vous devez être le propriétaire du fichier pour changer ses permissions\n");
+        printf("Erreur: Vous devez etre le proprietaire du fichier pour changer ses permissions\n");
         return -1;
     }
     
@@ -1301,14 +1301,14 @@ int chmod_file(partition_t *part, const char *name, int mode) {
 int chown_file(partition_t *part, const char *name, int uid, int gid) {
     // Seul root peut changer le propriétaire
     if (part->current_user.id != 0) {
-        printf("Erreur: Seul root peut changer le propriétaire d'un fichier\n");
+        printf("Erreur: Seul root peut changer le proprietaire d'un fichier\n");
         return -1;
     }
     
     // Trouver le fichier dans le répertoire courant
     int inode_num = find_file_in_dir(part, part->current_dir_inode, name);
     if (inode_num == -1) {
-        printf("Erreur: Fichier '%s' non trouvé\n", name);
+        printf("Erreur: Fichier '%s' non trouve\n", name);
         return -1;
     }
     
@@ -1319,7 +1319,7 @@ int chown_file(partition_t *part, const char *name, int uid, int gid) {
     // Mettre à jour le temps de modification
     part->inodes[inode_num].ctime = time(NULL);
     
-    printf("Propriétaire et groupe modifiés pour '%s'\n", name);
+    printf("Proprietaire et groupe modifies pour '%s'\n", name);
     return 0;
 }
 
@@ -1333,7 +1333,7 @@ int switch_user(partition_t *part, int uid, int gid) {
     sprintf(part->current_user.name, "user%d", uid);  // Nom générique
     part->current_user.group_id = gid;
     
-    printf("Utilisateur changé: uid=%d, gid=%d\n", uid, gid);
+    printf("Utilisateur change: uid=%d, gid=%d\n", uid, gid);
     return 0;
 }
 
@@ -1410,7 +1410,6 @@ void print_current_path(partition_t *part) {
         printf("%s", path_components[i]);
         if (i > 0) printf("/");
     }
-    printf("\n");
 }
 
 // Structure pour stocker les composants d'un chemin
@@ -1542,19 +1541,19 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
     // Résoudre le chemin source
     int source_inode = resolve_path(part, source_path, &source_parent_inode);
     if (source_inode == -1) {
-        printf("Erreur: Fichier source '%s' non trouvé\n", source_path);
+        printf("Erreur: Fichier source '%s' non trouve\n", source_path);
         return -1;
     }
     
     // Vérifier si l'utilisateur a les droits nécessaires sur le fichier source
     if (!check_permission(part, source_inode, 2)) { // 2 = permission d'écriture
-        printf("Erreur: Permission d'écriture refusée pour '%s'\n", source_path);
+        printf("Erreur: Permission d'ecriture refusee pour '%s'\n", source_path);
         return -1;
     }
     
     // Vérifier si l'utilisateur a les droits d'écriture sur le répertoire parent source
     if (!check_permission(part, source_parent_inode, 2)) {
-        printf("Erreur: Permission d'écriture refusée pour le répertoire source\n");
+        printf("Erreur: Permission d'ecriture refusee pour le repertoire source\n");
         return -1;
     }
     
@@ -1590,26 +1589,26 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
     }
     
     if (dest_dir_inode == -1) {
-        printf("Erreur: Répertoire de destination non trouvé\n");
+        printf("Erreur: Repertoire de destination non trouve\n");
         return -1;
     }
     
     // Vérifier si le répertoire de destination est bien un répertoire
     if (!(part->inodes[dest_dir_inode].mode & 040000)) {
-        printf("Erreur: La destination n'est pas un répertoire\n");
+        printf("Erreur: La destination n'est pas un repertoire\n");
         return -1;
     }
     
     // Vérifier si l'utilisateur a les droits d'écriture sur le répertoire de destination
     if (!check_permission(part, dest_dir_inode, 2)) {
-        printf("Erreur: Permission d'écriture refusée pour le répertoire de destination\n");
+        printf("Erreur: Permission d'ecriture refusee pour le repertoire de destination\n");
         return -1;
     }
     
     // Vérifier si le fichier destination existe déjà
     int dest_file_inode = find_file_in_dir(part, dest_dir_inode, dest_filename);
     if (dest_file_inode != -1) {
-        printf("Erreur: Le fichier destination '%s' existe déjà\n", dest_filename);
+        printf("Erreur: Le fichier destination '%s' existe deja\n", dest_filename);
         return -1;
     }
     
@@ -1654,7 +1653,7 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
     }
     
     if (dir_block == -1) {
-        printf("Erreur: Répertoire de destination plein\n");
+        printf("Erreur: Repertoire de destination plein\n");
         return -1;
     }
     
@@ -1670,7 +1669,6 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
     
 
     if(mode=!COPYMODE){
-        printf("la copy est realise ");
         return 0;
     }
     // Supprimer l'entrée de répertoire pour le fichier source
@@ -1689,14 +1687,14 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
                 // Mettre à jour le temps de modification du répertoire source
                 part->inodes[source_parent_inode].mtime = time(NULL);
                 
-                printf("Fichier '%s' déplacé vers '%s'\n", source_path, dest_path);
+                printf("Fichier '%s' deplace vers '%s'\n", source_path, dest_path);
                 return 0;
             }
         }
     }
 
     
-    printf("Avertissement: Entrée source non trouvée dans le répertoire\n");
+    printf("Avertissement: Entree source non trouvee dans le repertoire\n");
     return 0;
 }
 
@@ -1716,10 +1714,9 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
 
 
 int write_to_file(partition_t *part, const char *name, const char *data, int size) {
-
+    
     // Trouver l'inode du fichier par son nom
     int inode_num = find_file_in_dir(part, part->current_dir_inode, name);
-    printf("Before write: mode = %o\n", part->inodes[inode_num].mode);
     
     // Si le fichier n'existe pas, le créer
     if (inode_num < 0) {
@@ -1763,7 +1760,6 @@ int write_to_file(partition_t *part, const char *name, const char *data, int siz
     part->inodes[inode_num].size = size;
     part->inodes[inode_num].mtime = time(NULL);
     
-    printf("After write: mode = %o\n", part->inodes[inode_num].mode);
     return size;
 }
 
@@ -1838,9 +1834,9 @@ void cat_command(partition_t *part, const char *name) {
         buffer[bytes_read] = '\0'; // Ajouter un terminateur de chaîne
         printf("%s\n", buffer);
     } else if (bytes_read == -1) {
-        printf("Erreur: fichier '%s' non trouvé.\n", name);
+        printf("Erreur: fichier '%s' non trouve.\n", name);
     } else if (bytes_read == -2) {
-        printf("Erreur: permission refusée pour '%s'.\n", name);
+        printf("Erreur: permission refusee pour '%s'.\n", name);
     }
 
 
@@ -1849,9 +1845,9 @@ void cat_command(partition_t *part, const char *name) {
 int cat_write_command(partition_t *part, const char *name, const char *content) {
     int bytes_written = write_to_file(part, name, content, strlen(content));
     if (bytes_written == -1) {
-        printf("Erreur lors de l'écriture dans '%s'.\n", name);
+        printf("Erreur lors de l'ecriture dans '%s'.\n", name);
     } else if (bytes_written==-2){
-        printf("Erreur: permission refusée pour '%s'.\n", name);
+        printf("Erreur: permission refusee pour '%s'.\n", name);
     } else {
         printf("%d octets écrits dans '%s'.\n", bytes_written, name);
     }
@@ -1863,14 +1859,14 @@ int cat_write_command(partition_t *part, const char *name, const char *content) 
 int main() {
     espace_utilisable_t *space = (espace_utilisable_t *)malloc(sizeof(espace_utilisable_t));
     if (!space) {
-        printf("Erreur d'allocation mémoire\n");
+        printf("Erreur d'allocation memoire\n");
         return 1;
     }
     
     // Allouer de la mémoire pour la structure partition séparément
     partition_t *partition = (partition_t *)malloc(sizeof(partition_t));
     if (!partition) {
-        printf("Erreur d'allocation mémoire pour partition\n");
+        printf("Erreur d'allocation memoire pour partition\n");
         free(space);
         return 1;
     }
@@ -1903,14 +1899,14 @@ int main() {
     char param2[MAX_NAME_LENGTH];
     int running = 1;
     
-    printf("Système de fichiers initialisé. Tapez 'help' pour voir les commandes disponibles.\n");
+    printf("Systeme de fichiers initialise. Tapez 'help' pour voir les commandes disponibles.\n");
     
     create_file(partition,"root",040777);
     change_directory(partition,"root");
 
     while (running) {
         // Afficher l'invite de commande
-        printf("[root@myfs ");
+        printf("[user@myfs ");
         print_current_path(partition);
         printf("]$ ");
         
@@ -1932,17 +1928,17 @@ int main() {
             printf("Commandes disponibles:\n");
             printf("  help          - Affiche cette aide\n");
             printf("  ls            - Liste le contenu du répertoire courant\n");
-            printf("  mkdir nom     - Crée un répertoire\n");
-            printf("  touch nom     - Crée un fichier vide\n");
-            printf("  cd nom        - Change de répertoire\n");
-            printf("  rm nom        - Supprime un fichier ou répertoire\n");
-            printf("  ln -s src dst - Crée un lien symbolique\n");
+            printf("  mkdir nom     - Cree un répertoire\n");
+            printf("  touch nom     - Cree un fichier vide\n");
+            printf("  cd nom        - Change de repertoire\n");
+            printf("  rm nom        - Supprime un fichier ou repertoire\n");
+            printf("  ln -s src dst - Cree un lien symbolique\n");
             printf("  chmod mode nom- Change les permissions d'un fichier (mode en octal)\n");
-            printf("  chown uid:gid nom - Change le propriétaire d'un fichier\n");
+            printf("  chown uid:gid nom - Change le proprietaire d'un fichier\n");
             printf("  su uid gid    - Change d'utilisateur\n");
             printf("  pwd           - Affiche le chemin courant\n");
             printf("  cp src dst    - Copie un fichier\n");
-            printf("  mv src dst    - Déplace un fichier (supporte les chemins relatifs et absolus)\n");
+            printf("  mv src dst    - Deplace un fichier (supporte les chemins relatifs et absolus)\n");
             printf("  exit          - Quitte le programme\n");
         } else if (strncmp(command, "ls", 2) == 0) {
             if (sscanf(command + 2, "%s", param1) == 1) {
@@ -2020,7 +2016,7 @@ int main() {
         // Allouer un buffer pour stocker le contenu
         char *content = malloc(BLOCK_SIZE * NUM_DIRECT_BLOCKS);  // Taille maximale possible
         if(!content) {
-            printf("Erreur: Mémoire insuffisante\n");
+            printf("Erreur: Memoire insuffisante\n");
         } else {
             content[0] = '\0';  // Initialiser la chaîne vide
             
@@ -2042,7 +2038,7 @@ int main() {
             
             // Écrire le contenu dans le fichier
             if(cat_write_command(partition, filename, content) != 0) {
-                printf("Erreur: Échec d'écriture dans le fichier '%s'\n", filename);
+                printf("Erreur: Echec d'ecriture dans le fichier '%s'\n", filename);
             }
             
             free(content);
