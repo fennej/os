@@ -2051,7 +2051,7 @@ void sigint_handler(int sig) {
             
             if (scanf("%255s", filename) == 1) {
                 if (global_partition != NULL) {
-                    if (save_partition_to_file(global_partition, filename) == 0) {
+                    if (save_partition(global_partition, filename) == 0) {
                         printf("Sauvegarde réussie, fermeture en cours...\n");
                     } else {
                         printf("Échec de la sauvegarde, fermeture en cours...\n");
