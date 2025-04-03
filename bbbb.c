@@ -1862,6 +1862,328 @@ int cat_write_command(partition_t *part, const char *name, const char *content) 
 }
 
 
+// Fonction pour créer un lien en dur
+int create_hard_link(partition_t *part, const char *target_path, const char *link_path) {
+    int target_parent_inode = -1;
+    int link_parent_inode = -1;
+    
+    // Résoudre le chemin de la cible
+    int target_inode = resolve_path(part, target_path, &target_parent_inode);
+    if (target_inode == -1) {
+        printf("Erreur: Fichier cible '%s' non trouvé\n", target_path);
+        return -1;
+    }
+    
+    // Vérifier si la cible est un répertoire
+    if (part->inodes[target_inode].mode & 040000) {
+        printf("Erreur: Impossible de créer un lien dur vers un répertoire\n");
+        return -1;
+    }
+    
+    // Résoudre le chemin parent du lien
+    char link_parent_path[MAX_NAME_LENGTH * 4];
+    char link_name[MAX_NAME_LENGTH];
+    
+    // Extraire le nom du lien et le chemin de son parent
+    const char *last_slash = strrchr(link_path, '/');
+    if (last_slash == NULL) {
+        // Chemin relatif sans slash, utiliser le répertoire courant
+        strcpy(link_parent_path, ".");
+        strcpy(link_name, link_path);
+    } else if (last_slash == link_path) {
+        // Lien dans la racine
+        strcpy(link_parent_path, "/");
+        strcpy(link_name, last_slash + 1);
+    } else {
+        // Extraire le chemin du parent
+        int parent_len = last_slash - link_path;
+        strncpy(link_parent_path, link_path, parent_len);
+        link_parent_path[parent_len] = '\0';
+        strcpy(link_name, last_slash + 1);
+    }
+    
+    // Résoudre le répertoire parent du lien
+    int link_dir_inode = resolve_path(part, link_parent_path, &link_parent_inode);
+    if (link_dir_inode == -1) {
+        printf("Erreur: Répertoire parent du lien '%s' non trouvé\n", link_parent_path);
+        return -1;
+    }
+    
+    // Vérifier si le répertoire parent du lien est bien un répertoire
+    if (!(part->inodes[link_dir_inode].mode & 040000)) {
+        printf("Erreur: '%s' n'est pas un répertoire\n", link_parent_path);
+        return -1;
+    }
+    
+    // Vérifier si l'utilisateur a les droits d'écriture sur le répertoire parent du lien
+    if (!check_permission(part, link_dir_inode, 2)) {
+        printf("Erreur: Permission d'écriture refusée pour '%s'\n", link_parent_path);
+        return -1;
+    }
+    
+    // Vérifier si un fichier avec le même nom existe déjà dans le répertoire parent du lien
+    if (find_file_in_dir(part, link_dir_inode, link_name) != -1) {
+        printf("Erreur: '%s' existe déjà\n", link_name);
+        return -1;
+    }
+    
+    // Trouver un bloc libre pour ajouter l'entrée de répertoire
+    int dir_block = -1;
+    int entry_index = -1;
+    
+    for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
+        int block_num = part->inodes[link_dir_inode].direct_blocks[i];
+        if (block_num == -1) {
+            // Allouer un nouveau bloc
+            block_num = allocate_block(part);
+            if (block_num == -1) {
+                printf("Erreur: Plus de blocs disponibles\n");
+                return -1;
+            }
+            part->inodes[link_dir_inode].direct_blocks[i] = block_num;
+            
+            // Initialiser le nouveau bloc
+            memset(part->space->data + (block_num + USERSAPCE_OFSET) * BLOCK_SIZE, 0, BLOCK_SIZE);
+            
+            dir_block = block_num;
+            entry_index = 0;
+            break;
+        }
+        
+        // Chercher une entrée libre dans le bloc existant
+        dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (block_num + USERSAPCE_OFSET) * BLOCK_SIZE);
+        int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
+        
+        for (int j = 0; j < num_entries; j++) {
+            if (dir_entries[j].inode_num == 0) {
+                dir_block = block_num;
+                entry_index = j;
+                break;
+            }
+        }
+        
+        if (dir_block != -1) break;
+    }
+    
+    // Si aucun bloc direct n'a d'espace, essayer le bloc indirect
+    if (dir_block == -1) {
+        // Si pas de bloc indirect, en allouer un
+        if (part->inodes[link_dir_inode].indirect_block == -1) {
+            int indirect_block = allocate_block(part);
+            if (indirect_block == -1) {
+                printf("Erreur: Plus de blocs disponibles\n");
+                return -1;
+            }
+            part->inodes[link_dir_inode].indirect_block = indirect_block;
+            
+            // Initialiser la table indirecte
+            int *indirect_table = (int *)(part->space->data + (indirect_block + USERSAPCE_OFSET) * BLOCK_SIZE);
+            for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
+                indirect_table[i] = -1;
+            }
+        }
+        
+        // Parcourir la table indirecte
+        int *indirect_table = (int *)(part->space->data + (part->inodes[link_dir_inode].indirect_block + USERSAPCE_OFSET) * BLOCK_SIZE);
+        for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
+            if (indirect_table[i] == -1) {
+                // Allouer un nouveau bloc
+                int block_num = allocate_block(part);
+                if (block_num == -1) {
+                    printf("Erreur: Plus de blocs disponibles\n");
+                    return -1;
+                }
+                indirect_table[i] = block_num;
+                
+                // Initialiser le nouveau bloc
+                memset(part->space->data + (block_num + USERSAPCE_OFSET) * BLOCK_SIZE, 0, BLOCK_SIZE);
+                
+                dir_block = block_num;
+                entry_index = 0;
+                break;
+            }
+            
+            // Chercher une entrée libre dans le bloc existant
+            dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (indirect_table[i] + USERSAPCE_OFSET) * BLOCK_SIZE);
+            int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
+            
+            for (int j = 0; j < num_entries; j++) {
+                if (dir_entries[j].inode_num == 0) {
+                    dir_block = indirect_table[i];
+                    entry_index = j;
+                    break;
+                }
+            }
+            
+            if (dir_block != -1) break;
+        }
+    }
+    
+    if (dir_block == -1) {
+        printf("Erreur: Répertoire plein, impossible d'ajouter une nouvelle entrée\n");
+        return -1;
+    }
+    
+    // Ajouter l'entrée de répertoire pour le nouveau lien dur
+    dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (dir_block + USERSAPCE_OFSET) * BLOCK_SIZE);
+    dir_entries[entry_index].inode_num = target_inode;
+    strncpy(dir_entries[entry_index].name, link_name, MAX_NAME_LENGTH - 1);
+    dir_entries[entry_index].name[MAX_NAME_LENGTH - 1] = '\0';
+    
+    // Incrémenter le nombre de liens dans l'inode cible
+    part->inodes[target_inode].links_count++;
+    
+    // Mettre à jour le temps de modification du répertoire parent
+    part->inodes[link_dir_inode].mtime = time(NULL);
+    
+    printf("Lien dur '%s' créé vers '%s'\n", link_path, target_path);
+    return 0;
+}
+
+
+// Fonction pour supprimer récursivement un fichier ou un répertoire
+int delete_recursive(partition_t *part, const char *path) {
+    int parent_inode = -1;
+    int target_inode = resolve_path(part, path, &parent_inode);
+    
+    if (target_inode == -1) {
+        printf("Erreur: '%s' n'existe pas\n", path);
+        return -1;
+    }
+    
+    // Vérifier les permissions sur le parent
+    if (!check_permission(part, parent_inode, 2)) { // 2 = écriture
+        printf("Erreur: Permissions insuffisantes pour supprimer '%s'\n", path);
+        return -1;
+    }
+    
+    // Extraire le nom du fichier/répertoire à supprimer
+    char target_name[MAX_NAME_LENGTH];
+    const char *last_slash = strrchr(path, '/');
+    if (last_slash == NULL) {
+        strcpy(target_name, path);
+    } else {
+        strcpy(target_name, last_slash + 1);
+    }
+    
+    // Vérifier si c'est un répertoire
+    if (part->inodes[target_inode].mode & 040000) {
+        // C'est un répertoire, vérifier s'il est vide
+        for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
+            int block_num = part->inodes[target_inode].direct_blocks[i];
+            if (block_num == -1) continue;
+            
+            dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (block_num + USERSAPCE_OFSET) * BLOCK_SIZE);
+            int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
+            
+            for (int j = 0; j < num_entries; j++) {
+                if (dir_entries[j].inode_num != 0 && 
+                    strcmp(dir_entries[j].name, ".") != 0 && 
+                    strcmp(dir_entries[j].name, "..") != 0) {
+                    // Construire le chemin complet pour l'entrée
+                    char subpath[MAX_NAME_LENGTH * 2];
+                    if (strcmp(path, "/") == 0) {
+                        snprintf(subpath, sizeof(subpath), "/%s", dir_entries[j].name);
+                    } else {
+                        snprintf(subpath, sizeof(subpath), "%s/%s", path, dir_entries[j].name);
+                    }
+                    
+                    // Supprimer récursivement
+                    if (delete_recursive(part, subpath) != 0) {
+                        return -1;
+                    }
+                }
+            }
+        }
+        
+        // Vérifier également le bloc indirect pour les entrées de répertoire
+        if (part->inodes[target_inode].indirect_block != -1) {
+            int *indirect_table = (int *)(part->space->data + (part->inodes[target_inode].indirect_block + USERSAPCE_OFSET) * BLOCK_SIZE);
+            for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
+                if (indirect_table[i] == -1) continue;
+                
+                dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (indirect_table[i] + USERSAPCE_OFSET) * BLOCK_SIZE);
+                int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
+                
+                for (int j = 0; j < num_entries; j++) {
+                    if (dir_entries[j].inode_num != 0 && 
+                        strcmp(dir_entries[j].name, ".") != 0 && 
+                        strcmp(dir_entries[j].name, "..") != 0) {
+                        // Construire le chemin complet pour l'entrée
+                        char subpath[MAX_NAME_LENGTH * 2];
+                        if (strcmp(path, "/") == 0) {
+                            snprintf(subpath, sizeof(subpath), "/%s", dir_entries[j].name);
+                        } else {
+                            snprintf(subpath, sizeof(subpath), "%s/%s", path, dir_entries[j].name);
+                        }
+                        
+                        // Supprimer récursivement
+                        if (delete_recursive(part, subpath) != 0) {
+                            return -1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Diminuer le nombre de liens
+    part->inodes[target_inode].links_count--;
+    
+    // Si le nombre de liens est 0, libérer l'inode et les blocs associés
+    if (part->inodes[target_inode].links_count <= 0) {
+        free_inode(part, target_inode);
+    }
+    
+    // Supprimer l'entrée du répertoire parent
+    for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
+        int block_num = part->inodes[parent_inode].direct_blocks[i];
+        if (block_num == -1) continue;
+        
+        dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (block_num + USERSAPCE_OFSET) * BLOCK_SIZE);
+        int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
+        
+        for (int j = 0; j < num_entries; j++) {
+            if (dir_entries[j].inode_num == target_inode && strcmp(dir_entries[j].name, target_name) == 0) {
+                // Effacer cette entrée
+                memset(&dir_entries[j], 0, sizeof(dir_entry_t));
+                
+                // Mettre à jour le temps de modification du répertoire parent
+                part->inodes[parent_inode].mtime = time(NULL);
+                
+                printf("'%s' supprimé avec succès\n", path);
+                return 0;
+            }
+        }
+    }
+    
+    // Vérifier également le bloc indirect du parent
+    if (part->inodes[parent_inode].indirect_block != -1) {
+        int *indirect_table = (int *)(part->space->data + (part->inodes[parent_inode].indirect_block + USERSAPCE_OFSET) * BLOCK_SIZE);
+        for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
+            if (indirect_table[i] == -1) continue;
+            
+            dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (indirect_table[i] + USERSAPCE_OFSET) * BLOCK_SIZE);
+            int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
+            
+            for (int j = 0; j < num_entries; j++) {
+                if (dir_entries[j].inode_num == target_inode && strcmp(dir_entries[j].name, target_name) == 0) {
+                    // Effacer cette entrée
+                    memset(&dir_entries[j], 0, sizeof(dir_entry_t));
+                    
+                    // Mettre à jour le temps de modification du répertoire parent
+                    part->inodes[parent_inode].mtime = time(NULL);
+                    
+                    printf("'%s' supprimé avec succès\n", path);
+                    return 0;
+                }
+            }
+        }
+    }
+    
+    printf("Erreur: Entrée non trouvée dans le répertoire parent\n");
+    return -1;
+}
 
 
 // Fonction pour sauvegarder l'état de la partition dans un fichier
@@ -2072,17 +2394,17 @@ void sigint_handler(int sig) {
 
 void setup_signal_handler(partition_t *part) {
     // Stocker la référence à la partition pour pouvoir y accéder dans le gestionnaire de signal
-    global_partition = part;
+    // global_partition = part;
     
-    // Installer le gestionnaire de signal pour SIGINT (Ctrl+C)
-    struct sigaction sa;
-    sa.sa_handler = sigint_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
+    // // Installer le gestionnaire de signal pour SIGINT (Ctrl+C)
+    // struct sigaction sa;
+    // sa.sa_handler = sigint_handler;
+    // sigemptyset(&sa.sa_mask);
+    // sa.sa_flags = 0;
     
-    if (sigaction(SIGINT, &sa, NULL) == -1) {
-        perror("Erreur lors de l'installation du gestionnaire de signal");
-    }
+    // if (sigaction(SIGINT, &sa, NULL) == -1) {
+    //     perror("Erreur lors de l'installation du gestionnaire de signal");
+    // }
 }
 
 
@@ -2192,8 +2514,11 @@ int main() {
         else if (strncmp(command, "cd ", 3) == 0) {
             sscanf(command + 3, "%s", param1);
             change_directory(partition, param1);
-        }
-        else if (strncmp(command, "rm ", 3) == 0) {
+        }else if(strncmp(command, "rm -r  ", 5) == 0){
+            sscanf(command + 5, "%s", param1);
+            delete_recursive(partition,param1);
+        }else
+         if (strncmp(command, "rm ", 3) == 0) {
             sscanf(command + 3, "%s", param1);
             delete_file(partition, param1);
         }
@@ -2288,7 +2613,10 @@ int main() {
 		}else if (strncmp(command, "load ", 5) == 0) {
  		   	sscanf(command + 5, "%s", param1);
   			load_partition(partition, param1);
-		}
+		}else if(strncmp(command, "ln ", 3) == 0){
+            sscanf(command + 3, "%s", param1);
+            delete_recursive(partition,param1);
+            }
         else {
             printf("Commande inconnue. Tapez 'help' pour voir les commandes disponibles.\n");
         }
