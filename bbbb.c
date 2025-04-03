@@ -282,7 +282,6 @@ int check_permission(partition_t *part, int inode_num, int perm_bit) {
     }
     
     int mode = part->inodes[inode_num].mode;
-    printf("mode : %o",mode);
     int user_type;
     
     // Déterminer le type d'utilisateur (propriétaire, groupe, autre)
@@ -1827,7 +1826,7 @@ int write_to_file(partition_t *part, const char *name, const char *data, int siz
         inode_num = create_file(part, name, 0100644); // -rw-r--r--
         if (inode_num < 0) return -1; // Échec de création
     }
-    
+    if (!check_permission(part, inode_num, 2)) return -2; // Pas de permission
     // Calculer combien de blocs sont nécessaires
     int blocks_needed = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     
@@ -1949,11 +1948,14 @@ void cat_command(partition_t *part, const char *name) {
 
 void cat_write_command(partition_t *part, const char *name, const char *content) {
     int bytes_written = write_to_file(part, name, content, strlen(content));
-    if (bytes_written < 0) {
+    if (bytes_written == -1) {
         printf("Erreur lors de l'écriture dans '%s'.\n", name);
+    } else if (bytes_written==-2){
+        printf("Erreur: permission refusée pour '%s'.\n", name);
     } else {
         printf("%d octets écrits dans '%s'.\n", bytes_written, name);
     }
+    
         int inode_num = find_file_in_dir(part, part->current_dir_inode, name);
         //printf("After write: mode = %o\n", part->inodes[inode_num].mode);
 }
