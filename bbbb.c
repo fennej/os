@@ -1668,7 +1668,8 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
     part->inodes[dest_dir_inode].mtime = time(NULL);
     
 
-    if(mode=!COPYMODE){
+    if(mode==COPYMODE){
+        printf("la copy est realise ");
         return 0;
     }
     // Supprimer l'entrée de répertoire pour le fichier source
@@ -1844,16 +1845,17 @@ void cat_command(partition_t *part, const char *name) {
 
 int cat_write_command(partition_t *part, const char *name, const char *content) {
     int bytes_written = write_to_file(part, name, content, strlen(content));
+    if(bytes_written<0)
     if (bytes_written == -1) {
-        printf("Erreur lors de l'ecriture dans '%s'.\n", name);
+        printf("Erreur lors de l'écriture dans '%s'.\n", name);
+        return 1;
     } else if (bytes_written==-2){
-        printf("Erreur: permission refusee pour '%s'.\n", name);
+        printf("Erreur: permission refusée pour '%s'.\n", name);
+        return 1;
     } else {
         printf("%d octets écrits dans '%s'.\n", bytes_written, name);
     }
-    
-        int inode_num = find_file_in_dir(part, part->current_dir_inode, name);
-        //printf("After write: mode = %o\n", part->inodes[inode_num].mode);
+    return 0;
 }
 
 int main() {
@@ -2038,7 +2040,7 @@ int main() {
             
             // Écrire le contenu dans le fichier
             if(cat_write_command(partition, filename, content) != 0) {
-                printf("Erreur: Echec d'ecriture dans le fichier '%s'\n", filename);
+                printf("Erreur: Échec d'écriture dans le fichier '%s'\n", filename); 
             }
             
             free(content);
