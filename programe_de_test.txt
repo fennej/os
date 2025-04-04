@@ -1,0 +1,9 @@
+touch works
+chmod 000 works
+su 1 1
+cat works
+cat > fichier
+bonjour
+.
+ls
+pwd

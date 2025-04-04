@@ -32,7 +32,7 @@ void setup_signal_handler(partition_t *part) {
 }
 
 
-int main() {
+int main(int argc, char *argv[]) {
 
     
 
@@ -83,15 +83,39 @@ int main() {
     
     create_file(partition,"root",040777);
     change_directory(partition,"root");
-
+    FILE *input = stdin;
+    if (argc > 1) {
+        input = fopen(argv[1], "r");
+        if (!input) {
+            perror("Erreur lors de l'ouverture du fichier de commandes");
+            free(space);
+            free(partition);
+            return 1;
+        }
+    }
+    int done=0;
     while (running) {
         // Afficher l'invite de commande
-        printf("[user@myfs ");
-        print_current_path(partition);
-        printf("]$ ");
-        
+        if (done==0){
+            printf("[user@myfs ");
+            print_current_path(partition);
+            printf("]$ ");}
+        else{
+            done=0;
+        }
         // Lire la commande
-        fgets(command, sizeof(command), stdin);
+        if (!fgets(command, sizeof(command), input)) {
+            if (input != stdin) {
+                fclose(input);  // Fermer le fichier
+                input = stdin;  // Passer en mode interactif
+                done=1;
+                continue;  // Reprendre la boucle pour éviter d'exécuter une commande vide
+        }
+            break;
+        }
+        
+        
+        
         
         // Supprimer le retour à la ligne
         if (command[strlen(command) - 1] == '\n') {
@@ -207,7 +231,7 @@ int main() {
             printf("Entrez le contenu du fichier (terminez par un . sur une ligne vide):\n");
             
             char buffer[1024];
-            while(fgets(buffer, sizeof(buffer), stdin) != NULL) {
+            while(fgets(buffer, sizeof(buffer), input) != NULL) {
                 // Vérifier si la saisie est terminée par un signal spécial
                 if(strcmp(buffer, ".\n") == 0) break;  // Une ligne contenant seulement un point termine la saisie
                 
@@ -250,6 +274,8 @@ int main() {
     
     // Libérer la mémoire
     free(space);  // Libérer l'espace utilisable plutôt que partition
-    
+    if (input != stdin) {
+        fclose(input);
+    }
     return 0;
 }
