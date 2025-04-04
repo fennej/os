@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=gnu99 -D_POSIX_C_SOURCE=200809L
+CFLAGS = -std=gnu99 -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -lc
 OBJ = main.o inode.o block.o file_operation.o folder_operation.o init.o load.o permission.o
 
@@ -21,7 +21,7 @@ block.o: block.c block.h
 file_operation.o: file_operation.c file_operation.h 
 	$(CC) $(CFLAGS) -c file_operation.c
 
-folder_operation.o: folder_operation.c folder_operation.h  block.h
+folder_operation.o: folder_operation.c folder_operation.h  block.h file_operation.h
 	$(CC) $(CFLAGS) -c folder_operation.c
 
 init.o: init.c init.h 

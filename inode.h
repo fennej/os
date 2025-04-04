@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "structure.h"
-
+#include "block.h"
 int allocate_inode(partition_t *part);
 void free_inode(partition_t *part, int inode_num);
 

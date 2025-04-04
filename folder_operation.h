@@ -9,6 +9,10 @@
 #include "structure.h"
 #include "load.h"
 #include "block.h" 
+#include "permission.h"
+#include "file_operation.h"
+#include "permission.h"
+
 
 int change_directory(partition_t *part, const char *name);
 void list_directory(partition_t *part,char* parem);

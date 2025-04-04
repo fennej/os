@@ -1,6 +1,6 @@
 #include "load.h"
 
-extern partition_t *global_partition = NULL;
+partition_t *global_partition = NULL;
 
 // Fonction pour sauvegarder l'état de la partition dans un fichier
 int save_partition(partition_t *part, const char *filename) {

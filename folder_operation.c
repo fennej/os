@@ -1,4 +1,4 @@
-#include "inode.h"
+#include "folder_operation.h"
 
 
 // Fonction pour ajouter une entrée dans un répertoire
@@ -867,7 +867,7 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
     
 
     if(mode==COPYMODE){
-        printf("la copy est realise ");
+        printf("la copy est realise \n");
         return 0;
     }
     // Supprimer l'entrée de répertoire pour le fichier source

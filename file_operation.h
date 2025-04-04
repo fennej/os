@@ -8,14 +8,16 @@
 #include <fcntl.h>
 #include "structure.h"
 #include "load.h"
-
+#include "permission.h"
+#include "inode.h"
+#include "block.h"
+#include "folder_operation.h"
 int create_file(partition_t *part, const char *name, int mode);
 int find_file_in_dir(partition_t *part, int dir_inode, const char *name);
 int create_symlink(partition_t *part, const char *link_name, const char *target_name);
 int delete_file(partition_t *part, const char *name);
 int resolve_symlink(partition_t *part, int inode_num);
 int resolve_symlink2(partition_t *part, int symlink_inode);
-int copy_file(partition_t *part, const char *source, const char *destination);
 int resolve_pathAB(partition_t *part, const char *path);
 int read_from_file(partition_t *part, const char *name, char *buffer, int max_size);
 void cat_command(partition_t *part, const char *name);

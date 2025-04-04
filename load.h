@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "structure.h"
-
+#include "init.h"
 extern partition_t *global_partition;
 void sigint_handler(int sig);
 void free_partition(partition_t *part);
