@@ -1,34 +1,34 @@
 /**
  * @file file_operation.c
- * @brief Opérations sur les fichiers et répertoires dans une partition.
+ * @brief Operations sur les fichiers et repertoires dans une partition.
  
  * participation: Mestar sami:50% Tighilt idir:50%
- * Ce fichier contient les fonctions permettant de créer des fichiers, de les
- * rechercher dans un répertoire et d'effectuer diverses opérations de gestion
+ * Ce fichier contient les fonctions permettant de creer des fichiers, de les
+ * rechercher dans un repertoire et d'effectuer diverses operations de gestion
  * des fichiers dans une partition.
  */
 
 #include "file_operation.h"
 
 /**
- * @brief Recherche un fichier dans un répertoire donné.
+ * @brief Recherche un fichier dans un repertoire donne.
  * 
- * Cette fonction parcourt les entrées d'un répertoire pour trouver un fichier
- * portant le nom spécifié. Si le fichier est trouvé, elle retourne le numéro
+ * Cette fonction parcourt les entrees d'un repertoire pour trouver un fichier
+ * portant le nom specifie. Si le fichier est trouve, elle retourne le numero
  * d'inode du fichier. Sinon, elle retourne -1.
  * 
- * @param part Pointeur vers la partition contenant le répertoire.
- * @param dir_inode Numéro d'inode du répertoire à rechercher.
+ * @param part Pointeur vers la partition contenant le repertoire.
+ * @param dir_inode Numero d'inode du repertoire à rechercher.
  * @param name Nom du fichier à rechercher.
- * @return int Le numéro d'inode du fichier trouvé, ou -1 si le fichier n'est pas trouvé.
+ * @return int Le numero d'inode du fichier trouve, ou -1 si le fichier n'est pas trouve.
  */
 
  int find_file_in_dir(partition_t *part, int dir_inode, const char *name) {
-    if (!(part->inodes[dir_inode].mode & 040000)) {  // Vérifier si c'est un répertoire
+    if (!(part->inodes[dir_inode].mode & 040000)) {  // Verifier si c'est un repertoire
         return -1;
     }
     
-    // Parcourir tous les blocs du répertoire
+    // Parcourir tous les blocs du repertoire
     for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
         int block_num = part->inodes[dir_inode].direct_blocks[i];
         if (block_num == -1) continue;
@@ -45,7 +45,7 @@
         }
     }
     
-    // Vérifier le bloc indirect
+    // Verifier le bloc indirect
     if (part->inodes[dir_inode].indirect_block != -1) {
         int *indirect_table = (int *)(part->space->data + part->inodes[dir_inode].indirect_block * BLOCK_SIZE);
         for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
@@ -62,30 +62,30 @@
         }
     }
     
-    return -1;  // Fichier non trouvé
+    return -1;  // Fichier non trouve
 }
 
 /**
- * @brief Crée un fichier dans le répertoire courant.
+ * @brief Cree un fichier dans le repertoire courant.
  * 
- * Cette fonction crée un nouveau fichier dans le répertoire courant en allouant
- * un nouvel inode, en initialisant son contenu et en ajoutant une entrée pour
- * ce fichier dans le répertoire. Elle vérifie également les permissions et
- * l'existence préalable du fichier.
+ * Cette fonction cree un nouveau fichier dans le repertoire courant en allouant
+ * un nouvel inode, en initialisant son contenu et en ajoutant une entree pour
+ * ce fichier dans le repertoire. Elle verifie egalement les permissions et
+ * l'existence prealable du fichier.
  * 
- * @param part Pointeur vers la partition où créer le fichier.
- * @param name Nom du fichier à créer.
- * @param mode Mode du fichier (permissions et type, par exemple répertoire ou fichier ordinaire).
- * @return int Le numéro d'inode du fichier créé, ou -1 en cas d'erreur.
+ * @param part Pointeur vers la partition où creer le fichier.
+ * @param name Nom du fichier à creer.
+ * @param mode Mode du fichier (permissions et type, par exemple repertoire ou fichier ordinaire).
+ * @return int Le numero d'inode du fichier cree, ou -1 en cas d'erreur.
  */
 int create_file(partition_t *part, const char *name, int mode) {
-    // Vérifier les permissions du répertoire courant pour l'écriture (bit 2)
+    // Verifier les permissions du repertoire courant pour l'ecriture (bit 2)
     if (!check_permission(part, part->current_dir_inode, 2)) {
         printf("Erreur: Permissions insuffisantes pour creer dans ce repertoire\n");
         return -1;
     }
     
-    // Vérifier si le fichier existe déjà
+    // Verifier si le fichier existe dejà
     if (find_file_in_dir(part, part->current_dir_inode, name) != -1) {
         printf("Erreur: Un fichier avec ce nom existe deja\n");
         return -1;
@@ -107,9 +107,9 @@ int create_file(partition_t *part, const char *name, int mode) {
     part->inodes[inode_num].mtime = time(NULL);
     part->inodes[inode_num].ctime = time(NULL);
     
-    // Si c'est un répertoire, initialiser le contenu
+    // Si c'est un repertoire, initialiser le contenu
     if (mode & 040000) {
-        // Allouer un bloc pour le contenu du répertoire
+        // Allouer un bloc pour le contenu du repertoire
         int block_num = allocate_block(part);
         if (block_num == -1) {
             free_inode(part, inode_num);
@@ -120,14 +120,14 @@ int create_file(partition_t *part, const char *name, int mode) {
         part->inodes[inode_num].direct_blocks[0] = block_num;
         part->inodes[inode_num].size = 2 * sizeof(dir_entry_t);  // . et ..
         
-        // Initialiser le contenu du répertoire
+        // Initialiser le contenu du repertoire
         dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (block_num+ USERSAPCE_OFSET) * BLOCK_SIZE);
         
-        // Entrée pour .
+        // Entree pour .
         dir_entries[0].inode_num = inode_num;
         strcpy(dir_entries[0].name, ".");
         
-        // Entrée pour ..
+        // Entree pour ..
         dir_entries[1].inode_num = part->current_dir_inode;
         strcpy(dir_entries[1].name, "..");
         
@@ -139,13 +139,13 @@ int create_file(partition_t *part, const char *name, int mode) {
         
         // Mettre à jour le nombre de liens
         part->inodes[inode_num].links_count = 2;  // . et entry dans le parent
-        part->inodes[part->current_dir_inode].links_count++;  // .. dans le nouveau répertoire
+        part->inodes[part->current_dir_inode].links_count++;  // .. dans le nouveau repertoire
     } else {
         // Fichier ordinaire
-        part->inodes[inode_num].links_count = 1;  // Un seul lien (l'entrée dans le répertoire parent)
+        part->inodes[inode_num].links_count = 1;  // Un seul lien (l'entree dans le repertoire parent)
     }
     
-    // Ajouter l'entrée dans le répertoire courant
+    // Ajouter l'entree dans le repertoire courant
     if (add_dir_entry(part, part->current_dir_inode, name, inode_num) != 0) {
         free_inode(part, inode_num);
         printf("Erreur: Impossible d'ajouter l'entree dans le repertoire\n");
@@ -158,32 +158,32 @@ int create_file(partition_t *part, const char *name, int mode) {
 
 
 /**
- * @brief Crée un lien symbolique dans le répertoire courant.
+ * @brief Cree un lien symbolique dans le repertoire courant.
  * 
- * Cette fonction crée un lien symbolique pointant vers un fichier cible. Elle vérifie 
- * les permissions nécessaires et si le lien ou la cible existe déjà. Un nouvel inode 
- * est alloué pour le lien symbolique et le chemin de la cible est stocké dans le 
- * bloc de données du lien.
+ * Cette fonction cree un lien symbolique pointant vers un fichier cible. Elle verifie 
+ * les permissions necessaires et si le lien ou la cible existe dejà. Un nouvel inode 
+ * est alloue pour le lien symbolique et le chemin de la cible est stocke dans le 
+ * bloc de donnees du lien.
  * 
- * @param part Pointeur vers la partition où créer le lien symbolique.
- * @param link_name Nom du lien symbolique à créer.
+ * @param part Pointeur vers la partition où creer le lien symbolique.
+ * @param link_name Nom du lien symbolique à creer.
  * @param target_name Nom du fichier cible vers lequel le lien symbolique pointe.
- * @return int Le numéro d'inode du lien symbolique créé, ou -1 en cas d'erreur.
+ * @return int Le numero d'inode du lien symbolique cree, ou -1 en cas d'erreur.
  */
 int create_symlink(partition_t *part, const char *link_name, const char *target_name) {
-    // Vérifier les permissions du répertoire courant pour l'écriture (bit 2)
+    // Verifier les permissions du repertoire courant pour l'ecriture (bit 2)
     if (!check_permission(part, part->current_dir_inode, 2)) {
         printf("Erreur: Permissions insuffisantes pour creer dans ce repertoire\n");
         return -1;
     }
     
-    // Vérifier si le nom du lien existe déjà
+    // Verifier si le nom du lien existe dejà
     if (find_file_in_dir(part, part->current_dir_inode, link_name) != -1) {
         printf("Erreur: Un fichier avec ce nom existe deja\n");
         return -1;
     }
     
-    // Vérifier si la cible existe
+    // Verifier si la cible existe
     int target_inode = find_file_in_dir(part, part->current_dir_inode, target_name);
     if (target_inode == -1) {
         printf("Erreur: Fichier cible '%s' non trouve\n", target_name);
@@ -206,7 +206,7 @@ int create_symlink(partition_t *part, const char *link_name, const char *target_
     part->inodes[symlink_inode].ctime = time(NULL);
     part->inodes[symlink_inode].links_count = 1;
     
-    // Stocker le chemin de la cible dans le bloc de données
+    // Stocker le chemin de la cible dans le bloc de donnees
     int data_block = allocate_block(part);
     if (data_block == -1) {
         free_inode(part, symlink_inode);
@@ -217,10 +217,10 @@ int create_symlink(partition_t *part, const char *link_name, const char *target_
     part->inodes[symlink_inode].direct_blocks[0] = data_block;
     part->inodes[symlink_inode].size = strlen(target_name) + 1;
     
-    // Copier le nom de la cible dans le bloc de données
+    // Copier le nom de la cible dans le bloc de donnees
     strcpy(part->space->data + (data_block+USERSAPCE_OFSET) * BLOCK_SIZE, target_name);
     
-    // Ajouter l'entrée dans le répertoire courant
+    // Ajouter l'entree dans le repertoire courant
     if (add_dir_entry(part, part->current_dir_inode, link_name, symlink_inode) != 0) {
         free_block(part, data_block);
         free_inode(part, symlink_inode);
@@ -228,24 +228,24 @@ int create_symlink(partition_t *part, const char *link_name, const char *target_
         return -1;
     }
     
-    printf("Lien symbolique '%s' vers '%s' créé avec succes\n", link_name, target_name);
+    printf("Lien symbolique '%s' vers '%s' cree avec succes\n", link_name, target_name);
     return symlink_inode;
 }
 
 
 
 /**
- * @brief Supprime un fichier ou un répertoire dans le répertoire courant.
+ * @brief Supprime un fichier ou un repertoire dans le repertoire courant.
  * 
- * Cette fonction supprime un fichier ou un répertoire dans le répertoire courant,
- * après avoir vérifié les permissions nécessaires et que le fichier ou répertoire
- * n'est pas vide (si c'est un répertoire). Elle décrémente également le nombre de 
- * liens de l'inode et libère les ressources associées lorsque le nombre de liens
+ * Cette fonction supprime un fichier ou un repertoire dans le repertoire courant,
+ * après avoir verifie les permissions necessaires et que le fichier ou repertoire
+ * n'est pas vide (si c'est un repertoire). Elle decremente egalement le nombre de 
+ * liens de l'inode et libère les ressources associees lorsque le nombre de liens
  * atteint 0.
  * 
- * @param part Pointeur vers la partition contenant le fichier ou répertoire à supprimer.
- * @param name Nom du fichier ou répertoire à supprimer.
- * @return int 0 si la suppression a réussi, -1 en cas d'erreur.
+ * @param part Pointeur vers la partition contenant le fichier ou repertoire à supprimer.
+ * @param name Nom du fichier ou repertoire à supprimer.
+ * @return int 0 si la suppression a reussi, -1 en cas d'erreur.
  */
 int delete_file(partition_t *part, const char *name) {
     // Ne pas permettre la suppression de "." et ".."
@@ -254,22 +254,22 @@ int delete_file(partition_t *part, const char *name) {
         return -1;
     }
     
-    // Vérifier les permissions du répertoire parent pour l'écriture
+    // Verifier les permissions du repertoire parent pour l'ecriture
     if (!check_permission(part, part->current_dir_inode, 2)) {
-        printf("Erreur: Permissions insuffisantes pour supprimer depuis ce répertoire\n");
+        printf("Erreur: Permissions insuffisantes pour supprimer depuis ce repertoire\n");
         return -1;
     }
     
-    // Trouver le fichier dans le répertoire courant
+    // Trouver le fichier dans le repertoire courant
     int inode_num = find_file_in_dir(part, part->current_dir_inode, name);
     if (inode_num == -1) {
         printf("Erreur: Fichier '%s' non trouve\n", name);
         return -1;
     }
     
-    // Vérifier si c'est un répertoire et s'il est vide
+    // Verifier si c'est un repertoire et s'il est vide
     if (part->inodes[inode_num].mode & 040000) {
-        // Parcourir le contenu du répertoire pour voir s'il est vide
+        // Parcourir le contenu du repertoire pour voir s'il est vide
         for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
             int block_num = part->inodes[inode_num].direct_blocks[i];
             if (block_num == -1) continue;
@@ -281,17 +281,17 @@ int delete_file(partition_t *part, const char *name) {
                 if (dir_entries[j].inode_num != 0 && 
                     strcmp(dir_entries[j].name, ".") != 0 && 
                     strcmp(dir_entries[j].name, "..") != 0) {
-                    printf("Erreur: Le répertoire n'est pas vide\n");
+                    printf("Erreur: Le repertoire n'est pas vide\n");
                     return -1;
                 }
             }
         }
         
-        // Décréments le nombre de liens du répertoire parent (lien "..")
+        // Decrements le nombre de liens du repertoire parent (lien "..")
         part->inodes[part->current_dir_inode].links_count--;
     }
     
-    // Décréments le nombre de liens
+    // Decrements le nombre de liens
     part->inodes[inode_num].links_count--;
     
     // Si le nombre de liens atteint 0, supprimer le fichier
@@ -299,7 +299,7 @@ int delete_file(partition_t *part, const char *name) {
         free_inode(part, inode_num);
     }
     
-    // Supprimer l'entrée du répertoire
+    // Supprimer l'entree du repertoire
     remove_dir_entry(part, part->current_dir_inode, name);
     
     printf("%s '%s' suppression avec succes\n", (part->inodes[inode_num].mode & 040000) ? "Repertoire" : "Fichier", name);
@@ -307,20 +307,20 @@ int delete_file(partition_t *part, const char *name) {
 }
 
 /**
- * @brief Résout un lien symbolique en suivant les redirections jusqu'à ce qu'un fichier ou répertoire réel soit atteint.
+ * @brief Resout un lien symbolique en suivant les redirections jusqu'à ce qu'un fichier ou repertoire reel soit atteint.
  * 
- * Cette fonction limite la profondeur de résolution à 10 pour éviter les boucles infinies.
- * Si un lien symbolique est trouvé, la fonction suit la cible du lien jusqu'à ce qu'un fichier
- * ou répertoire réel soit atteint. Si un lien corrompu est détecté ou si un trop grand nombre
- * de niveaux de liens symboliques est rencontré, la fonction retourne une erreur.
+ * Cette fonction limite la profondeur de resolution à 10 pour eviter les boucles infinies.
+ * Si un lien symbolique est trouve, la fonction suit la cible du lien jusqu'à ce qu'un fichier
+ * ou repertoire reel soit atteint. Si un lien corrompu est detecte ou si un trop grand nombre
+ * de niveaux de liens symboliques est rencontre, la fonction retourne une erreur.
  * 
- * @param part Partition contenant les informations sur les inodes et l'espace de données.
- * @param inode_num Numéro de l'inode du fichier ou répertoire à partir duquel commencer la résolution.
+ * @param part Partition contenant les informations sur les inodes et l'espace de donnees.
+ * @param inode_num Numero de l'inode du fichier ou repertoire à partir duquel commencer la resolution.
  * 
  * @return L'inode correspondant à la cible du lien symbolique, ou -1 en cas d'erreur.
  */
 int resolve_symlink(partition_t *part, int inode_num) {
-    int max_depth = 10;  // Limiter la profondeur pour éviter les boucles infinies
+    int max_depth = 10;  // Limiter la profondeur pour eviter les boucles infinies
     
     for (int depth = 0; depth < max_depth; depth++) {
 
@@ -351,21 +351,21 @@ int resolve_symlink(partition_t *part, int inode_num) {
 }
 
 /**
- * @brief Résout un chemin absolu et retourne l'inode correspondant au fichier ou répertoire.
+ * @brief Resout un chemin absolu et retourne l'inode correspondant au fichier ou repertoire.
  * 
- * Cette fonction résout un chemin absolu (commençant par '/') en parcourant les répertoires
- * et en suivant les liens symboliques éventuels. Si un lien symbolique est rencontré,
- * il est résolu jusqu'à ce qu'un fichier réel soit trouvé. La fonction vérifie également
- * les permissions nécessaires pour accéder aux répertoires.
+ * Cette fonction resout un chemin absolu (commençant par '/') en parcourant les repertoires
+ * et en suivant les liens symboliques eventuels. Si un lien symbolique est rencontre,
+ * il est resolu jusqu'à ce qu'un fichier reel soit trouve. La fonction verifie egalement
+ * les permissions necessaires pour acceder aux repertoires.
  * 
- * @param part Partition contenant les informations sur les inodes et l'espace de données.
- * @param path Le chemin absolu à résoudre.
+ * @param part Partition contenant les informations sur les inodes et l'espace de donnees.
+ * @param path Le chemin absolu à resoudre.
  * 
- * @return L'inode correspondant au fichier ou répertoire à la fin du chemin, ou -1 en cas d'erreur.
+ * @return L'inode correspondant au fichier ou repertoire à la fin du chemin, ou -1 en cas d'erreur.
  */
 
 int resolve_pathAB(partition_t *part, const char *path) {
-    // Vérifier si le chemin est absolu (commence par '/')
+    // Verifier si le chemin est absolu (commence par '/')
     if (path == NULL || path[0] != '/') {
         printf("Erreur: Chemin non absolu\n");
         return -1;
@@ -384,27 +384,27 @@ int resolve_pathAB(partition_t *part, const char *path) {
     strncpy(path_copy, path + 1, sizeof(path_copy) - 1); // +1 pour sauter le '/' initial
     path_copy[sizeof(path_copy) - 1] = '\0';
     
-    // Séparer le chemin en composants
+    // Separer le chemin en composants
     char *token = strtok(path_copy, "/");
     
     while (token != NULL) {
-        // Sauter les composants "." (répertoire courant)
+        // Sauter les composants "." (repertoire courant)
         if (strcmp(token, ".") == 0) {
             token = strtok(NULL, "/");
             continue;
         }
         
-        // Gérer ".." (répertoire parent)
+        // Gerer ".." (repertoire parent)
         if (strcmp(token, "..") == 0) {
-            // Trouver l'inode parent en utilisant l'entrée ".."
+            // Trouver l'inode parent en utilisant l'entree ".."
             int parent_inode = -1;
             
             for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
                 int block_num = part->inodes[current_inode].direct_blocks[i];
                 if (block_num == -1) continue;
                 
-                // Calculer l'offset réel dans l'espace de données
-                // Assurez-vous que vous utilisez la bonne façon d'accéder aux blocs
+                // Calculer l'offset reel dans l'espace de donnees
+                // Assurez-vous que vous utilisez la bonne façon d'acceder aux blocs
                 int real_block_offset = (block_num + USERSAPCE_OFSET) * BLOCK_SIZE;
                 dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + real_block_offset);
                 int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
@@ -423,26 +423,26 @@ int resolve_pathAB(partition_t *part, const char *path) {
                 return -1;
             }
             
-            // Vérifier les permissions
-            if (!check_permission(part, parent_inode, 1)) {  // Besoin de permission d'exécution
+            // Verifier les permissions
+            if (!check_permission(part, parent_inode, 1)) {  // Besoin de permission d'execution
                 printf("Erreur: Permissions insuffisantes pour acceder au repertoire parent\n");
                 return -1;
             }
             
             current_inode = parent_inode;
         }
-        // Gérer un composant normal du chemin
+        // Gerer un composant normal du chemin
         else {
 
             printf("hiii %d  %s",current_inode,token);
-            // Chercher ce composant dans le répertoire courant
+            // Chercher ce composant dans le repertoire courant
             int inode_num = find_file_in_dir(part, current_inode, token);
             if (inode_num == -1) {
                 printf("Erreur: '%s' non trouve\n", token);
                 return -1;
             }
             
-            // Si c'est un lien symbolique, le résoudre
+            // Si c'est un lien symbolique, le resoudre
             if (part->inodes[inode_num].mode & 0120000) {
                 printf("Suivi du lien symbolique '%s'...\n", token);
                 inode_num = resolve_symlink(part, inode_num);
@@ -451,22 +451,22 @@ int resolve_pathAB(partition_t *part, const char *path) {
                 }
             }
             
-            // Vérifier les permissions (sauf pour le dernier composant du chemin)
+            // Verifier les permissions (sauf pour le dernier composant du chemin)
             char *next_token = strtok(NULL, "/");
             if (next_token != NULL) {
-                // Ce n'est pas le dernier composant, nous avons besoin de permission d'exécution
-                // Vérifier si c'est un répertoire
+                // Ce n'est pas le dernier composant, nous avons besoin de permission d'execution
+                // Verifier si c'est un repertoire
                 if (!(part->inodes[inode_num].mode & 040000)) {
                     printf("Erreur: '%s' n'est pas un repertoire\n", token);
                     return -1;
                 }
                 
-                if (!check_permission(part, inode_num, 1)) {  // Besoin de permission d'exécution
+                if (!check_permission(part, inode_num, 1)) {  // Besoin de permission d'execution
                     printf("Erreur: Permissions insuffisantes pour acceder à '%s'\n", token);
                     return -1;
                 }
             }
-            // Si c'est le dernier composant, ne pas vérifier s'il s'agit d'un répertoire
+            // Si c'est le dernier composant, ne pas verifier s'il s'agit d'un repertoire
             
             // Mettre à jour l'inode courant
             current_inode = inode_num;
@@ -488,14 +488,14 @@ int resolve_pathAB(partition_t *part, const char *path) {
 
 
 /**
- * @brief Résout un lien symbolique en suivant sa cible.
+ * @brief Resout un lien symbolique en suivant sa cible.
  * 
- * Cette fonction vérifie si un inode correspond à un lien symbolique. Si oui, elle résout
+ * Cette fonction verifie si un inode correspond à un lien symbolique. Si oui, elle resout
  * le lien symbolique et retourne l'inode du fichier cible. Sinon, elle retourne l'inode
  * d'origine.
  * 
- * @param part Partition contenant les informations sur les inodes et l'espace de données.
- * @param symlink_inode Numéro de l'inode du lien symbolique à résoudre.
+ * @param part Partition contenant les informations sur les inodes et l'espace de donnees.
+ * @param symlink_inode Numero de l'inode du lien symbolique à resoudre.
  * 
  * @return L'inode de la cible du lien symbolique ou l'inode d'origine si ce n'est pas un lien symbolique, ou -1 en cas d'erreur.
  */
@@ -521,46 +521,46 @@ int resolve_symlink2(partition_t *part, int symlink_inode) {
  * @brief Lit le contenu d'un fichier et le copie dans un buffer.
  * 
  * Cette fonction lit un fichier à partir du système de fichiers et le copie dans un tampon. 
- * Si le fichier est un lien symbolique, il est d'abord résolu. Elle vérifie également si 
- * l'utilisateur dispose des permissions nécessaires pour lire le fichier.
+ * Si le fichier est un lien symbolique, il est d'abord resolu. Elle verifie egalement si 
+ * l'utilisateur dispose des permissions necessaires pour lire le fichier.
  * 
- * @param part Partition contenant les informations sur les inodes et l'espace de données.
+ * @param part Partition contenant les informations sur les inodes et l'espace de donnees.
  * @param name Le nom du fichier à lire.
- * @param buffer Le tampon où les données lues seront copiées.
+ * @param buffer Le tampon où les donnees lues seront copiees.
  * @param max_size La taille maximale à lire.
  * 
- * @return Le nombre d'octets effectivement lus, ou -1 si le fichier n'a pas été trouvé, ou -2 si les permissions sont insuffisantes.
+ * @return Le nombre d'octets effectivement lus, ou -1 si le fichier n'a pas ete trouve, ou -2 si les permissions sont insuffisantes.
  */
 
 int read_from_file(partition_t *part, const char *name, char *buffer, int max_size) {
 
     // Trouver l'inode du fichier
     int inode_num = find_file_in_dir(part, part->current_dir_inode, name);
-    if (inode_num < 0) return -1; // Fichier non trouvé
+    if (inode_num < 0) return -1; // Fichier non trouve
     
     if ((part->inodes[inode_num].mode & 0170000) == 0120000) {
         inode_num = resolve_symlink2(part, inode_num);
         if (inode_num < 0) return -1; // Failed to resolve symlink
     }
 
-    // Vérifier les permissions de lecture
+    // Verifier les permissions de lecture
     if (!check_permission(part, inode_num, 4)) return -2; // Pas de permission
     
-    // Déterminer la taille à lire
+    // Determiner la taille à lire
     int size_to_read = (part->inodes[inode_num].size < max_size) ? 
                         part->inodes[inode_num].size : max_size;
     
     int remaining = size_to_read;
     int offset = 0;
     
-    // Lire les données depuis les blocs directs
+    // Lire les donnees depuis les blocs directs
     for (int i = 0; i < NUM_DIRECT_BLOCKS && remaining > 0; i++) {
         int block_num = part->inodes[inode_num].direct_blocks[i];
         if (block_num == -1) break;
         
         int read_size = (remaining > BLOCK_SIZE) ? BLOCK_SIZE : remaining;
         
-        // Copier les données du bloc vers le buffer
+        // Copier les donnees du bloc vers le buffer
         memcpy(buffer + offset, part->space->data + (block_num + USERSAPCE_OFSET) * BLOCK_SIZE, read_size);
         
         offset += read_size;
@@ -576,10 +576,10 @@ int read_from_file(partition_t *part, const char *name, char *buffer, int max_si
 /**
  * @brief Affiche le contenu d'un fichier dans la sortie standard (simule la commande 'cat').
  * 
- * Cette fonction utilise `read_from_file` pour lire le contenu d'un fichier et l'afficher à l'écran.
- * Si une erreur se produit, un message d'erreur est affiché.
+ * Cette fonction utilise `read_from_file` pour lire le contenu d'un fichier et l'afficher à l'ecran.
+ * Si une erreur se produit, un message d'erreur est affiche.
  * 
- * @param part Partition contenant les informations sur les inodes et l'espace de données.
+ * @param part Partition contenant les informations sur les inodes et l'espace de donnees.
  * @param name Le nom du fichier à afficher.
  */
 
@@ -602,71 +602,71 @@ void cat_command(partition_t *part, const char *name) {
 
 
 /**
- * @brief Écrit du contenu dans un fichier, simule la commande 'cat >'.
+ * @brief ecrit du contenu dans un fichier, simule la commande 'cat >'.
  * 
- * Cette fonction utilise une fonction d'écriture pour placer le contenu dans un fichier donné.
- * Si une erreur se produit lors de l'écriture ou si les permissions sont insuffisantes,
- * un message d'erreur est affiché.
+ * Cette fonction utilise une fonction d'ecriture pour placer le contenu dans un fichier donne.
+ * Si une erreur se produit lors de l'ecriture ou si les permissions sont insuffisantes,
+ * un message d'erreur est affiche.
  * 
- * @param part Partition contenant les informations sur les inodes et l'espace de données.
- * @param name Le nom du fichier où le contenu doit être écrit.
- * @param content Le contenu à écrire dans le fichier.
+ * @param part Partition contenant les informations sur les inodes et l'espace de donnees.
+ * @param name Le nom du fichier où le contenu doit être ecrit.
+ * @param content Le contenu à ecrire dans le fichier.
  * 
- * @return 0 si l'écriture a réussi, ou 1 si une erreur est survenue.
+ * @return 0 si l'ecriture a reussi, ou 1 si une erreur est survenue.
  */
 
 int cat_write_command(partition_t *part, const char *name, const char *content) {
     int bytes_written = write_to_file(part, name, content, strlen(content));
     if(bytes_written<0)
     if (bytes_written == -1) {
-        printf("Erreur lors de l'écriture dans '%s'.\n", name);
+        printf("Erreur lors de l'ecriture dans '%s'.\n", name);
         return 1;
     } else if (bytes_written==-2){
-        printf("Erreur: permission refusée pour '%s'.\n", name);
+        printf("Erreur: permission refusee pour '%s'.\n", name);
         return 1;
     } else {
-        printf("%d octets écrits dans '%s'.\n", bytes_written, name);
+        printf("%d octets ecrits dans '%s'.\n", bytes_written, name);
     }
     return 0;
 }
 
 
 /**
- * @brief Crée un lien dur vers un fichier existant.
+ * @brief Cree un lien dur vers un fichier existant.
  * 
- * Cette fonction crée un lien dur dans un répertoire donné pointant vers un fichier existant. 
- * Un lien dur est un autre nom pour un fichier sur le disque, qui fait référence au même inode.
+ * Cette fonction cree un lien dur dans un repertoire donne pointant vers un fichier existant. 
+ * Un lien dur est un autre nom pour un fichier sur le disque, qui fait reference au même inode.
  * 
- * @param part Partition où le fichier et le répertoire sont situés.
- * @param target_path Chemin vers le fichier cible vers lequel créer le lien dur.
- * @param link_path Chemin du nouveau lien dur à créer.
- * @return int Retourne 0 si la création du lien dur est réussie, -1 en cas d'erreur.
+ * @param part Partition où le fichier et le repertoire sont situes.
+ * @param target_path Chemin vers le fichier cible vers lequel creer le lien dur.
+ * @param link_path Chemin du nouveau lien dur à creer.
+ * @return int Retourne 0 si la creation du lien dur est reussie, -1 en cas d'erreur.
  */
 int create_hard_link(partition_t *part, const char *target_path, const char *link_path) {
     int target_parent_inode = -1;
     int link_parent_inode = -1;
     
-    // Résoudre le chemin de la cible
+    // Resoudre le chemin de la cible
     int target_inode = resolve_path(part, target_path, &target_parent_inode);
     if (target_inode == -1) {
-        printf("Erreur: Fichier cible '%s' non trouvé\n", target_path);
+        printf("Erreur: Fichier cible '%s' non trouve\n", target_path);
         return -1;
     }
     
-    // Vérifier si la cible est un répertoire
+    // Verifier si la cible est un repertoire
     if (part->inodes[target_inode].mode & 040000) {
-        printf("Erreur: Impossible de créer un lien dur vers un répertoire\n");
+        printf("Erreur: Impossible de creer un lien dur vers un repertoire\n");
         return -1;
     }
     
-    // Résoudre le chemin parent du lien
+    // Resoudre le chemin parent du lien
     char link_parent_path[MAX_NAME_LENGTH * 4];
     char link_name[MAX_NAME_LENGTH];
     
     // Extraire le nom du lien et le chemin de son parent
     const char *last_slash = strrchr(link_path, '/');
     if (last_slash == NULL) {
-        // Chemin relatif sans slash, utiliser le répertoire courant
+        // Chemin relatif sans slash, utiliser le repertoire courant
         strcpy(link_parent_path, ".");
         strcpy(link_name, link_path);
     } else if (last_slash == link_path) {
@@ -681,32 +681,32 @@ int create_hard_link(partition_t *part, const char *target_path, const char *lin
         strcpy(link_name, last_slash + 1);
     }
     
-    // Résoudre le répertoire parent du lien
+    // Resoudre le repertoire parent du lien
     int link_dir_inode = resolve_path(part, link_parent_path, &link_parent_inode);
     if (link_dir_inode == -1) {
-        printf("Erreur: Répertoire parent du lien '%s' non trouvé\n", link_parent_path);
+        printf("Erreur: Repertoire parent du lien '%s' non trouve\n", link_parent_path);
         return -1;
     }
     
-    // Vérifier si le répertoire parent du lien est bien un répertoire
+    // Verifier si le repertoire parent du lien est bien un repertoire
     if (!(part->inodes[link_dir_inode].mode & 040000)) {
-        printf("Erreur: '%s' n'est pas un répertoire\n", link_parent_path);
+        printf("Erreur: '%s' n'est pas un repertoire\n", link_parent_path);
         return -1;
     }
     
-    // Vérifier si l'utilisateur a les droits d'écriture sur le répertoire parent du lien
+    // Verifier si l'utilisateur a les droits d'ecriture sur le repertoire parent du lien
     if (!check_permission(part, link_dir_inode, 2)) {
-        printf("Erreur: Permission d'écriture refusée pour '%s'\n", link_parent_path);
+        printf("Erreur: Permission d'ecriture refusee pour '%s'\n", link_parent_path);
         return -1;
     }
     
-    // Vérifier si un fichier avec le même nom existe déjà dans le répertoire parent du lien
+    // Verifier si un fichier avec le même nom existe dejà dans le repertoire parent du lien
     if (find_file_in_dir(part, link_dir_inode, link_name) != -1) {
-        printf("Erreur: '%s' existe déjà\n", link_name);
+        printf("Erreur: '%s' existe dejà\n", link_name);
         return -1;
     }
     
-    // Trouver un bloc libre pour ajouter l'entrée de répertoire
+    // Trouver un bloc libre pour ajouter l'entree de repertoire
     int dir_block = -1;
     int entry_index = -1;
     
@@ -729,7 +729,7 @@ int create_hard_link(partition_t *part, const char *target_path, const char *lin
             break;
         }
         
-        // Chercher une entrée libre dans le bloc existant
+        // Chercher une entree libre dans le bloc existant
         dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (block_num + USERSAPCE_OFSET) * BLOCK_SIZE);
         int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
         
@@ -782,7 +782,7 @@ int create_hard_link(partition_t *part, const char *target_path, const char *lin
                 break;
             }
             
-            // Chercher une entrée libre dans le bloc existant
+            // Chercher une entree libre dans le bloc existant
             dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (indirect_table[i] + USERSAPCE_OFSET) * BLOCK_SIZE);
             int num_entries = BLOCK_SIZE / sizeof(dir_entry_t);
             
@@ -799,36 +799,36 @@ int create_hard_link(partition_t *part, const char *target_path, const char *lin
     }
     
     if (dir_block == -1) {
-        printf("Erreur: Répertoire plein, impossible d'ajouter une nouvelle entrée\n");
+        printf("Erreur: Repertoire plein, impossible d'ajouter une nouvelle entree\n");
         return -1;
     }
     
-    // Ajouter l'entrée de répertoire pour le nouveau lien dur
+    // Ajouter l'entree de repertoire pour le nouveau lien dur
     dir_entry_t *dir_entries = (dir_entry_t *)(part->space->data + (dir_block + USERSAPCE_OFSET) * BLOCK_SIZE);
     dir_entries[entry_index].inode_num = target_inode;
     strncpy(dir_entries[entry_index].name, link_name, MAX_NAME_LENGTH - 1);
     dir_entries[entry_index].name[MAX_NAME_LENGTH - 1] = '\0';
     
-    // Incrémenter le nombre de liens dans l'inode cible
+    // Incrementer le nombre de liens dans l'inode cible
     part->inodes[target_inode].links_count++;
     
-    // Mettre à jour le temps de modification du répertoire parent
+    // Mettre à jour le temps de modification du repertoire parent
     part->inodes[link_dir_inode].mtime = time(NULL);
     
-    printf("Lien dur '%s' créé vers '%s'\n", link_path, target_path);
+    printf("Lien dur '%s' cree vers '%s'\n", link_path, target_path);
     return 0;
 }
 
 
 /**
- * @brief Supprime un fichier ou un répertoire de manière récursive.
+ * @brief Supprime un fichier ou un repertoire de manière recursive.
  * 
- * Cette fonction supprime un fichier ou un répertoire et son contenu, si c'est un répertoire, de manière récursive. 
- * Pour un répertoire, cette fonction va d'abord supprimer les fichiers et sous-répertoires avant de supprimer le répertoire lui-même.
+ * Cette fonction supprime un fichier ou un repertoire et son contenu, si c'est un repertoire, de manière recursive. 
+ * Pour un repertoire, cette fonction va d'abord supprimer les fichiers et sous-repertoires avant de supprimer le repertoire lui-même.
  * 
- * @param part Partition contenant les fichiers et répertoires à supprimer.
- * @param path Chemin du fichier ou répertoire à supprimer.
- * @return int Retourne 0 si la suppression est réussie, -1 en cas d'erreur.
+ * @param part Partition contenant les fichiers et repertoires à supprimer.
+ * @param path Chemin du fichier ou repertoire à supprimer.
+ * @return int Retourne 0 si la suppression est reussie, -1 en cas d'erreur.
  */
 
 int delete_recursive(partition_t *part, const char *path) {
@@ -840,13 +840,13 @@ int delete_recursive(partition_t *part, const char *path) {
         return -1;
     }
     
-    // Vérifier les permissions sur le parent
-    if (!check_permission(part, parent_inode, 2)) { // 2 = écriture
+    // Verifier les permissions sur le parent
+    if (!check_permission(part, parent_inode, 2)) { // 2 = ecriture
         printf("Erreur: Permissions insuffisantes pour supprimer '%s'\n", path);
         return -1;
     }
     
-    // Extraire le nom du fichier/répertoire à supprimer
+    // Extraire le nom du fichier/repertoire à supprimer
     char target_name[MAX_NAME_LENGTH];
     const char *last_slash = strrchr(path, '/');
     if (last_slash == NULL) {
@@ -855,9 +855,9 @@ int delete_recursive(partition_t *part, const char *path) {
         strcpy(target_name, last_slash + 1);
     }
     
-    // Vérifier si c'est un répertoire
+    // Verifier si c'est un repertoire
     if (part->inodes[target_inode].mode & 040000) {
-        // C'est un répertoire, vérifier s'il est vide
+        // C'est un repertoire, verifier s'il est vide
         for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
             int block_num = part->inodes[target_inode].direct_blocks[i];
             if (block_num == -1) continue;
@@ -869,7 +869,7 @@ int delete_recursive(partition_t *part, const char *path) {
                 if (dir_entries[j].inode_num != 0 && 
                     strcmp(dir_entries[j].name, ".") != 0 && 
                     strcmp(dir_entries[j].name, "..") != 0) {
-                    // Construire le chemin complet pour l'entrée
+                    // Construire le chemin complet pour l'entree
                     char subpath[MAX_NAME_LENGTH * 2];
                     if (strcmp(path, "/") == 0) {
                         snprintf(subpath, sizeof(subpath), "/%s", dir_entries[j].name);
@@ -877,7 +877,7 @@ int delete_recursive(partition_t *part, const char *path) {
                         snprintf(subpath, sizeof(subpath), "%s/%s", path, dir_entries[j].name);
                     }
                     
-                    // Supprimer récursivement
+                    // Supprimer recursivement
                     if (delete_recursive(part, subpath) != 0) {
                         return -1;
                     }
@@ -885,7 +885,7 @@ int delete_recursive(partition_t *part, const char *path) {
             }
         }
         
-        // Vérifier également le bloc indirect pour les entrées de répertoire
+        // Verifier egalement le bloc indirect pour les entrees de repertoire
         if (part->inodes[target_inode].indirect_block != -1) {
             int *indirect_table = (int *)(part->space->data + (part->inodes[target_inode].indirect_block + USERSAPCE_OFSET) * BLOCK_SIZE);
             for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
@@ -898,7 +898,7 @@ int delete_recursive(partition_t *part, const char *path) {
                     if (dir_entries[j].inode_num != 0 && 
                         strcmp(dir_entries[j].name, ".") != 0 && 
                         strcmp(dir_entries[j].name, "..") != 0) {
-                        // Construire le chemin complet pour l'entrée
+                        // Construire le chemin complet pour l'entree
                         char subpath[MAX_NAME_LENGTH * 2];
                         if (strcmp(path, "/") == 0) {
                             snprintf(subpath, sizeof(subpath), "/%s", dir_entries[j].name);
@@ -906,7 +906,7 @@ int delete_recursive(partition_t *part, const char *path) {
                             snprintf(subpath, sizeof(subpath), "%s/%s", path, dir_entries[j].name);
                         }
                         
-                        // Supprimer récursivement
+                        // Supprimer recursivement
                         if (delete_recursive(part, subpath) != 0) {
                             return -1;
                         }
@@ -919,12 +919,12 @@ int delete_recursive(partition_t *part, const char *path) {
     // Diminuer le nombre de liens
     part->inodes[target_inode].links_count--;
     
-    // Si le nombre de liens est 0, libérer l'inode et les blocs associés
+    // Si le nombre de liens est 0, liberer l'inode et les blocs associes
     if (part->inodes[target_inode].links_count <= 0) {
         free_inode(part, target_inode);
     }
     
-    // Supprimer l'entrée du répertoire parent
+    // Supprimer l'entree du repertoire parent
     for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
         int block_num = part->inodes[parent_inode].direct_blocks[i];
         if (block_num == -1) continue;
@@ -934,19 +934,19 @@ int delete_recursive(partition_t *part, const char *path) {
         
         for (int j = 0; j < num_entries; j++) {
             if (dir_entries[j].inode_num == target_inode && strcmp(dir_entries[j].name, target_name) == 0) {
-                // Effacer cette entrée
+                // Effacer cette entree
                 memset(&dir_entries[j], 0, sizeof(dir_entry_t));
                 
-                // Mettre à jour le temps de modification du répertoire parent
+                // Mettre à jour le temps de modification du repertoire parent
                 part->inodes[parent_inode].mtime = time(NULL);
                 
-                printf("'%s' supprimé avec succès\n", path);
+                printf("'%s' supprime avec succès\n", path);
                 return 0;
             }
         }
     }
     
-    // Vérifier également le bloc indirect du parent
+    // Verifier egalement le bloc indirect du parent
     if (part->inodes[parent_inode].indirect_block != -1) {
         int *indirect_table = (int *)(part->space->data + (part->inodes[parent_inode].indirect_block + USERSAPCE_OFSET) * BLOCK_SIZE);
         for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
@@ -957,19 +957,19 @@ int delete_recursive(partition_t *part, const char *path) {
             
             for (int j = 0; j < num_entries; j++) {
                 if (dir_entries[j].inode_num == target_inode && strcmp(dir_entries[j].name, target_name) == 0) {
-                    // Effacer cette entrée
+                    // Effacer cette entree
                     memset(&dir_entries[j], 0, sizeof(dir_entry_t));
                     
-                    // Mettre à jour le temps de modification du répertoire parent
+                    // Mettre à jour le temps de modification du repertoire parent
                     part->inodes[parent_inode].mtime = time(NULL);
                     
-                    printf("'%s' supprimé avec succès\n", path);
+                    printf("'%s' supprime avec succès\n", path);
                     return 0;
                 }
             }
         }
     }
     
-    printf("Erreur: Entrée non trouvée dans le répertoire parent\n");
+    printf("Erreur: Entree non trouvee dans le repertoire parent\n");
     return -1;
 }
