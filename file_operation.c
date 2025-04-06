@@ -2,7 +2,7 @@
  * @file file_operation.c
  * @brief Opérations sur les fichiers et répertoires dans une partition.
  
- * participation: Mestar samy:50% Tighilt idir:50%
+ * participation: Mestar sami:50% Tighilt idir:50%
  * Ce fichier contient les fonctions permettant de créer des fichiers, de les
  * rechercher dans un répertoire et d'effectuer diverses opérations de gestion
  * des fichiers dans une partition.
