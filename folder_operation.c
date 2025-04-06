@@ -4,6 +4,7 @@
 /**
  * @brief Ajoute une entrée dans un répertoire.
  *
+ * participation: Mestar samy:50% Tighilt idir:50%
  * Cette fonction ajoute une entrée (fichier ou sous-répertoire) dans un répertoire existant.
  * Elle vérifie si le répertoire est valide, cherche un emplacement libre dans les blocs directs,
  * et si nécessaire, utilise un bloc indirect pour allouer de l'espace. 
@@ -282,7 +283,7 @@ int change_directory(partition_t *part, const char *path) {
         
         // Vérifier les permissions
         if (!check_permission(part, parent_inode, 1)) {
-            printf("Erreur: Permissions insuffisantes pour accéder au repertoire parent\n");
+            printf("Erreur: Permissions insuffisantes pour acceder au repertoire parent\n");
             return -1;
         }
         
@@ -399,7 +400,6 @@ int change_directory(partition_t *part, const char *path) {
  */
 void list_directory(partition_t *part,char* parem) {
         int inode_num = find_file_in_dir(part, part->current_dir_inode, "idir");
-   //     printf("After write: mode = %o , num est %d \n", part->inodes[inode_num].mode,inode_num);
     // Vérifier les permissions pour lire le répertoire (bit 4 = r)
     if (!check_permission(part, part->current_dir_inode, 4)) {
         printf("Erreur: Permissions insuffisantes pour lire le contenu de ce repertoire\n");
@@ -413,10 +413,7 @@ void list_directory(partition_t *part,char* parem) {
             printf("le fichier specifie n'existe pas");
         }else{
 char type_char = '-';
-      //  printf("After write: mode = %o , num est %d \n", part->inodes[inode_num].mode,inode_num);
 
-            //printf(" testtt %o\n",part->inodes[1].mode);
-           // printf("%o,le nom %s le num de l'inode %d le file inoden est %d",part->inodes[file_inode].mode,dir_entries[j].name,dir_entries[j].inode_num,file_inode);
             // Déterminer le type de fichier
             if ((part->inodes[file_inode].mode & 0170000) == 040000) type_char = 'd'; // Répertoire
             else if ((part->inodes[file_inode].mode & 0170000) == 0120000) type_char = 'l';  // Lien symbolique
@@ -469,8 +466,6 @@ char type_char = '-';
             char type_char = '-';
       //  printf("After write: mode = %o , num est %d \n", part->inodes[inode_num].mode,inode_num);
 
-            //printf(" testtt %o\n",part->inodes[1].mode);
-           // printf("%o,le nom %s le num de l'inode %d le file inoden est %d",part->inodes[file_inode].mode,dir_entries[j].name,dir_entries[j].inode_num,file_inode);
             // Déterminer le type de fichier
             if ((part->inodes[file_inode].mode & 0170000) == 040000) type_char = 'd'; // Répertoire
             else if ((part->inodes[file_inode].mode & 0170000) == 0120000) type_char = 'l';  // Lien symbolique
