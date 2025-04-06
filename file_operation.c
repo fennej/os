@@ -1,7 +1,8 @@
 /**
  * @file file_operation.c
  * @brief Opérations sur les fichiers et répertoires dans une partition.
- *
+ 
+ * participation: Mestar samy:50% Tighilt idir:50%
  * Ce fichier contient les fonctions permettant de créer des fichiers, de les
  * rechercher dans un répertoire et d'effectuer diverses opérations de gestion
  * des fichiers dans une partition.
@@ -147,7 +148,7 @@ int create_file(partition_t *part, const char *name, int mode) {
     // Ajouter l'entrée dans le répertoire courant
     if (add_dir_entry(part, part->current_dir_inode, name, inode_num) != 0) {
         free_inode(part, inode_num);
-        printf("Erreur: Impossible d'ajouter l'entrée dans le repertoire\n");
+        printf("Erreur: Impossible d'ajouter l'entree dans le repertoire\n");
         return -1;
     }
     
