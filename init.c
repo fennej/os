@@ -2,7 +2,7 @@
  * @file init.c
  * @brief Initialisation de la partition et de ses composants.
  *
- * participation: Mestar samy:50% Tighilt idir:50%
+ * participation: Mestar sami:50% Tighilt idir:50%
  * Ce fichier contient des fonctions pour initialiser une partition avec ses
  * composants de base, comme le superbloc, les bitmaps, la table d'inodes et
  * les répertoires de base.
