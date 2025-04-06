@@ -2,6 +2,7 @@
  * @file inode.c
  * @brief Gestion des inodes : allocation et libération.
  *
+ * participation: Mestar sami:50% Tighilt idir:50%
  * Ce fichier contient les fonctions nécessaires pour allouer et libérer les inodes
  * dans une partition simulée.
  */
