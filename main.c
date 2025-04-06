@@ -164,6 +164,8 @@ int main(int argc, char *argv[]) {
             printf("  touch nom     - Cree un fichier vide\n");
             printf("  cd nom        - Change de repertoire\n");
             printf("  rm nom        - Supprime un fichier ou repertoire\n");
+            printf("  rm -r nom     - Supprime un fichier ou repertoire\n");
+	    printf("  ln src dest   -Creer un lien simbolique");
             printf("  ln -s src dst - Cree un lien symbolique\n");
             printf("  chmod mode nom- Change les permissions d'un fichier (mode en octal)\n");
             printf("  chown uid:gid nom - Change le proprietaire d'un fichier\n");
@@ -293,8 +295,8 @@ int main(int argc, char *argv[]) {
  		   	sscanf(command + 5, "%s", param1);
   			load_partition(partition, param1);
 		}else if(strncmp(command, "ln ", 3) == 0){
-            sscanf(command + 3, "%s", param1);
-            delete_recursive(partition,param1);
+            sscanf(command + 3, "%s %s", param1,param2);
+            create_hard_link(partition,param1,param2);
             }
         else {
             printf("Commande inconnue. Tapez 'help' pour voir les commandes disponibles.\n");
