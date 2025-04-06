@@ -2,9 +2,10 @@
  * @file main.c
  * @brief Programme principal du système de fichiers.
  *
- * Ce programme initialise une partition en mémoire, installe un gestionnaire
- * de signaux pour gérer l'arrêt propre du programme (SIGINT), et fournit une interface
- * en ligne de commande pour manipuler des fichiers et des répertoires sur cette partition.
+ * participation: Mestar sami:50% Tighilt idir:50%
+ * Ce programme initialise une partition en memoire, installe un gestionnaire
+ * de signaux pour gerer l'arrêt propre du programme (SIGINT), et fournit une interface
+ * en ligne de commande pour manipuler des fichiers et des repertoires sur cette partition.
  *
  */
 
@@ -37,7 +38,7 @@
 
 
 void setup_signal_handler(partition_t *part) {
-    // Stocker la référence à la partition pour pouvoir y accéder dans le gestionnaire de signal
+    // Stocker la reference à la partition pour pouvoir y acceder dans le gestionnaire de signal
      global_partition = part;
     
     // Installer le gestionnaire de signal pour SIGINT (Ctrl+C)
@@ -54,11 +55,11 @@ void setup_signal_handler(partition_t *part) {
 /**
  * @brief Fonction principale du programme.
  *
- * Initialise la partition mémoire, configure les structures de base du système
+ * Initialise la partition memoire, configure les structures de base du système
  * de fichiers, puis entre dans une boucle de traitement des commandes utilisateur.
  *
- * @param argc Nombre d'arguments passés au programme.
- * @param argv Tableau des arguments (peut contenir un fichier de commandes à exécuter).
+ * @param argc Nombre d'arguments passes au programme.
+ * @param argv Tableau des arguments (peut contenir un fichier de commandes à executer).
  */
 
 int main(int argc, char *argv[]) {
@@ -71,7 +72,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    // Allouer de la mémoire pour la structure partition séparément
+    // Allouer de la memoire pour la structure partition separement
     partition_t *partition = (partition_t *)malloc(sizeof(partition_t));
     if (!partition) {
         printf("Erreur d'allocation memoire pour partition\n");
@@ -80,7 +81,7 @@ int main(int argc, char *argv[]) {
     }
 
     
-    // Définir la relation entre partition et space
+    // Definir la relation entre partition et space
     partition->space = space;
     
     // Initialiser les pointeurs vers les zones dans part->space->data
@@ -138,7 +139,7 @@ int main(int argc, char *argv[]) {
                 fclose(input);  // Fermer le fichier
                 input = stdin;  // Passer en mode interactif
                 done=1;
-                continue;  // Reprendre la boucle pour éviter d'exécuter une commande vide
+                continue;  // Reprendre la boucle pour eviter d'executer une commande vide
         }
             break;
         }
@@ -159,8 +160,8 @@ int main(int argc, char *argv[]) {
         else if (strcmp(command, "help") == 0) {
             printf("Commandes disponibles:\n");
             printf("  help          - Affiche cette aide\n");
-            printf("  ls            - Liste le contenu du répertoire courant\n");
-            printf("  mkdir nom     - Cree un répertoire\n");
+            printf("  ls            - Liste le contenu du repertoire courant\n");
+            printf("  mkdir nom     - Cree un repertoire\n");
             printf("  touch nom     - Cree un fichier vide\n");
             printf("  cd nom        - Change de repertoire\n");
             printf("  rm nom        - Supprime un fichier ou repertoire\n");
@@ -178,9 +179,9 @@ int main(int argc, char *argv[]) {
             printf("  exit          - Quitte le programme\n");
         } else if (strncmp(command, "ls", 2) == 0) {
             if (sscanf(command + 2, "%s", param1) == 1) {
-                list_directory(partition, param1); // Exécuter avec l'argument s'il existe
+                list_directory(partition, param1); // Executer avec l'argument s'il existe
             } else {
-                list_directory(partition, NULL); // Sinon, exécuter sans argument
+                list_directory(partition, NULL); // Sinon, executer sans argument
             }
             printf("\n");
         }
@@ -235,7 +236,7 @@ int main(int argc, char *argv[]) {
             move_file_with_paths(partition, param1, param2,MOVMODE);
  
         }else if(strncmp(command, "cat > ",6 ) == 0){
-    // Extraire le nom du fichier en préservant les espaces éventuels
+    // Extraire le nom du fichier en preservant les espaces eventuels
     char filename[MAX_NAME_LENGTH];
     int i = 6;  // Position après "cat > "
     int j = 0;
@@ -263,7 +264,7 @@ int main(int argc, char *argv[]) {
             
             char buffer[1024];
             while(fgets(buffer, sizeof(buffer), input) != NULL) {
-                // Vérifier si la saisie est terminée par un signal spécial
+                // Verifier si la saisie est terminee par un signal special
                 if(strcmp(buffer, ".\n") == 0) break;  // Une ligne contenant seulement un point termine la saisie
                 
                 // Ajouter la ligne au contenu
@@ -275,9 +276,9 @@ int main(int argc, char *argv[]) {
                 }
             }
             
-            // Écrire le contenu dans le fichier
+            // ecrire le contenu dans le fichier
             if(cat_write_command(partition, filename, content) != 0) {
-                printf("Erreur: Échec d'écriture dans le fichier '%s'\n", filename); 
+                printf("Erreur: Echec d'ecriture dans le fichier '%s'\n", filename); 
             }
             
             free(content);
@@ -303,8 +304,8 @@ int main(int argc, char *argv[]) {
         }
     }
     
-    // Libérer la mémoire
-    free(space);  // Libérer l'espace utilisable plutôt que partition
+    // Liberer la memoire
+    free(space);  // Liberer l'espace utilisable plutôt que partition
     if (input != stdin) {
         fclose(input);
     }
