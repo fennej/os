@@ -1,7 +1,9 @@
 /**
+
  * @file block.c
  * @brief Gestion des blocs dans une partition.
- *
+ 
+ * participation: Mestar samy:50% Tighilt idir:50%
  * Ce fichier contient les fonctions permettant d'allouer et de libérer des blocs
  * dans une partition, ainsi que la gestion des bitmaps associés.
  */
