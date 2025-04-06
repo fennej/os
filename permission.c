@@ -3,6 +3,7 @@
 /**
  * @brief Vérifie si l'utilisateur courant possède une permission spécifique sur un fichier.
  *
+ * participation: Mestar sami:50% Tighilt idir:50%
  * @param part Pointeur vers la structure de la partition.
  * @param inode_num Numéro de l'inode du fichier.
  * @param perm_bit Bit de permission à vérifier (ex: lecture, écriture, exécution).
@@ -77,7 +78,7 @@ int chmod_file(partition_t *part, const char *name, int mode) {
     // Mettre à jour le temps de modification
     part->inodes[inode_num].ctime = time(NULL);
     
-    printf("Permissions modifiées pour '%s'\n", name);
+    printf("Permissions modifiees pour '%s'\n", name);
     return 0;
 }
 
