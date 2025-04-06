@@ -4,7 +4,7 @@
 /**
  * @brief Ajoute une entrée dans un répertoire.
  *
- * participation: Mestar samy:50% Tighilt idir:50%
+ * participation: Mestar sami:50% Tighilt idir:50%
  * Cette fonction ajoute une entrée (fichier ou sous-répertoire) dans un répertoire existant.
  * Elle vérifie si le répertoire est valide, cherche un emplacement libre dans les blocs directs,
  * et si nécessaire, utilise un bloc indirect pour allouer de l'espace. 
