@@ -1,8 +1,22 @@
+/**
+ * @file load.c
+ * @brief Fonctions de sauvegarde et de chargement de la partition.
+ *
+ * Ce fichier contient les fonctions permettant de sauvegarder l'état d'une partition
+ * dans un fichier binaire et de recharger cet état depuis un fichier.
+ */
+
 #include "load.h"
 
 partition_t *global_partition = NULL;
 
-// Fonction pour sauvegarder l'état de la partition dans un fichier
+/**
+ * @brief Sauvegarde l'état actuel de la partition dans un fichier.
+ * 
+ * @param part Pointeur vers la partition à sauvegarder.
+ * @param filename Nom du fichier où sauvegarder la partition.
+ * @return 0 en cas de succès, -1 en cas d'erreur.
+ */
 int save_partition(partition_t *part, const char *filename) {
     FILE *file = fopen(filename, "wb");
     if (file == NULL) {
@@ -35,7 +49,13 @@ int save_partition(partition_t *part, const char *filename) {
     return 0;
 }
 
-// Fonction pour charger l'état d'une partition depuis un fichier
+/**
+ * @brief Charge l'état d'une partition depuis un fichier.
+ * 
+ * @param part Pointeur vers la partition à remplir.
+ * @param filename Nom du fichier contenant la partition sauvegardée.
+ * @return 0 en cas de succès, -1 en cas d'erreur.
+ */
 int load_partition(partition_t *part, const char *filename) {
     FILE *file = fopen(filename, "rb");
     if (file == NULL) {
@@ -136,7 +156,11 @@ int load_partition(partition_t *part, const char *filename) {
     return 0;
 }
 
-// Fonction pour allouer et initialiser une nouvelle partition (helper)
+/**
+ * @brief Crée et initialise une nouvelle partition.
+ * 
+ * @return Pointeur vers la nouvelle partition allouée, ou NULL en cas d'échec.
+ */
 partition_t* create_new_partition() {
     partition_t *part = (partition_t*)malloc(sizeof(partition_t));
     if (part == NULL) {
@@ -161,7 +185,11 @@ partition_t* create_new_partition() {
     return part;
 }
 
-// Fonction pour libérer la mémoire d'une partition (helper)
+/**
+ * @brief Libère la mémoire associée à une partition.
+ * 
+ * @param part Pointeur vers la partition à libérer.
+ */
 void free_partition(partition_t *part) {
     if (part != NULL) {
         if (part->space != NULL) {

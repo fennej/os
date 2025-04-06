@@ -1,9 +1,19 @@
-touch works
-chmod 000 works
+touch fichier.txt
+mkdir dossier
+chmod 000 fichier.txt
+cat fichier.txt
+chmod 777 fichier.txt
+chown 1:1 dossier
 su 1 1
-cat works
-cat > fichier
+ls
+cat > fichier.txt
 bonjour
 .
+
+mv fichier.txt dossier/
+ls
+cd dossier
 ls
 pwd
+
+rm fichier.txt

@@ -1,3 +1,13 @@
+/**
+ * @file main.c
+ * @brief Programme principal du système de fichiers.
+ *
+ * Ce programme initialise une partition en mémoire, installe un gestionnaire
+ * de signaux pour gérer l'arrêt propre du programme (SIGINT), et fournit une interface
+ * en ligne de commande pour manipuler des fichiers et des répertoires sur cette partition.
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +26,16 @@
 
 
 
+
+ /**
+ * @brief Configure un gestionnaire pour le signal SIGINT (Ctrl+C).
+ *
+ * Ce gestionnaire permet de demande a l'utilisateur de sauvegarder la partition dans un fichier
+ *
+ * @param part Pointeur vers la partition à manipuler en cas d'interruption.
+ */
+
+
 void setup_signal_handler(partition_t *part) {
     // Stocker la référence à la partition pour pouvoir y accéder dans le gestionnaire de signal
      global_partition = part;
@@ -31,6 +51,15 @@ void setup_signal_handler(partition_t *part) {
      }
 }
 
+/**
+ * @brief Fonction principale du programme.
+ *
+ * Initialise la partition mémoire, configure les structures de base du système
+ * de fichiers, puis entre dans une boucle de traitement des commandes utilisateur.
+ *
+ * @param argc Nombre d'arguments passés au programme.
+ * @param argv Tableau des arguments (peut contenir un fichier de commandes à exécuter).
+ */
 
 int main(int argc, char *argv[]) {
 

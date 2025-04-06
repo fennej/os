@@ -1,7 +1,19 @@
 #include "folder_operation.h"
 
 
-// Fonction pour ajouter une entrée dans un répertoire
+/**
+ * @brief Ajoute une entrée dans un répertoire.
+ *
+ * Cette fonction ajoute une entrée (fichier ou sous-répertoire) dans un répertoire existant.
+ * Elle vérifie si le répertoire est valide, cherche un emplacement libre dans les blocs directs,
+ * et si nécessaire, utilise un bloc indirect pour allouer de l'espace. 
+ *
+ * @param part Partition contenant les données du système de fichiers.
+ * @param dir_inode Numéro de l'inode du répertoire dans lequel l'entrée sera ajoutée.
+ * @param name Nom du fichier ou sous-répertoire à ajouter.
+ * @param inode_num Numéro de l'inode de l'entrée à ajouter.
+ * @return Retourne 0 en cas de succès, -1 si une erreur se produit.
+ */
 int add_dir_entry(partition_t *part, int dir_inode, const char *name, int inode_num) {
     if (!(part->inodes[dir_inode].mode & 040000)) {  // Vérifier si c'est un répertoire
         return -1;
@@ -116,7 +128,18 @@ int add_dir_entry(partition_t *part, int dir_inode, const char *name, int inode_
 }
 
 
-// Fonction pour supprimer une entrée d'un répertoire
+/**
+ * @brief Supprime une entrée d'un répertoire.
+ *
+ * Cette fonction supprime une entrée (fichier ou sous-répertoire) d'un répertoire.
+ * Elle parcourt les blocs du répertoire à la recherche de l'entrée et met à jour les informations
+ * du répertoire en conséquence.
+ *
+ * @param part Partition contenant les données du système de fichiers.
+ * @param dir_inode Numéro de l'inode du répertoire dans lequel l'entrée sera supprimée.
+ * @param name Nom de l'entrée à supprimer.
+ * @return Retourne 0 en cas de succès, -1 si une erreur se produit.
+ */
 int remove_dir_entry(partition_t *part, int dir_inode, const char *name) {
     if (!(part->inodes[dir_inode].mode & 040000)) {  // Vérifier si c'est un répertoire
         return -1;
@@ -174,7 +197,17 @@ int remove_dir_entry(partition_t *part, int dir_inode, const char *name) {
 }
 
 
-/// Fonction pour changer de répertoire
+/**
+ * @brief Change de répertoire.
+ *
+ * Cette fonction change le répertoire courant en fonction du chemin spécifié. Si le chemin est absolu,
+ * elle résout le chemin en partant de la racine, sinon elle résout le chemin relatif à partir du répertoire courant.
+ * Elle gère également les cas spéciaux tels que "." (répertoire courant) et ".." (répertoire parent).
+ *
+ * @param part Partition contenant les données du système de fichiers.
+ * @param path Chemin du répertoire cible (absolu ou relatif).
+ * @return Retourne 0 en cas de succès, -1 si une erreur se produit.
+ */
 int change_directory(partition_t *part, const char *path) {
     // Vérifier si le chemin est vide
     if (!path || strlen(path) == 0) {
@@ -354,7 +387,16 @@ int change_directory(partition_t *part, const char *path) {
 }
 
 
-// Fonction pour lister le contenu d'un répertoire
+/**
+ * @brief Liste le contenu d'un répertoire.
+ * 
+ * Cette fonction affiche le contenu d'un répertoire, avec les informations sur chaque fichier
+ * (permissions, nombre de liens, propriétaire, groupe, taille, date de modification, etc.).
+ * Si un fichier ou un répertoire spécifique est précisé en paramètre, seules les informations de ce fichier sont affichées.
+ * 
+ * @param part Partition contenant les informations du système de fichiers.
+ * @param parem Nom du fichier ou répertoire spécifique à afficher. Si NULL, tous les fichiers du répertoire sont listés.
+ */
 void list_directory(partition_t *part,char* parem) {
         int inode_num = find_file_in_dir(part, part->current_dir_inode, "idir");
    //     printf("After write: mode = %o , num est %d \n", part->inodes[inode_num].mode,inode_num);
@@ -541,7 +583,14 @@ char type_char = '-';
 }
 
 
-// Fonction pour afficher le chemin courant
+/**
+ * @brief Affiche le chemin courant à partir de la racine.
+ * 
+ * Cette fonction parcourt l'arborescence des répertoires à partir de l'inode du répertoire courant
+ * jusqu'à la racine et affiche le chemin absolu de ce répertoire.
+ * 
+ * @param part Partition contenant les informations du système de fichiers.
+ */
 void print_current_path(partition_t *part) {
     // Tableau pour stocker les noms de répertoires (du courant à la racine)
     char path_components[MAX_INODES][MAX_NAME_LENGTH];
@@ -616,8 +665,17 @@ void print_current_path(partition_t *part) {
     }
 }
 
-// Fonction pour diviser un chemin en composants
-void split_path(const char *path, path_components_t *components) {
+/**
+ * @brief Divise un chemin de fichier en composants.
+ * 
+ * Cette fonction divise un chemin de fichier (ex. "/home/user/documents") en composants séparés par "/".
+ * Le chemin est copié avant d'être traité pour ne pas altérer l'original.
+ * 
+ * @param path Le chemin à diviser.
+ * @param components Structure contenant les composants du chemin et un indicateur indiquant si le chemin est absolu.
+ */
+
+ void split_path(const char *path, path_components_t *components) {
     components->num_components = 0;
     components->is_absolute = (path[0] == '/');
     
@@ -636,7 +694,19 @@ void split_path(const char *path, path_components_t *components) {
     }
 }
 
-// Fonction pour résoudre un chemin relatif ou absolu et obtenir l'inode correspondant
+/**
+ * @brief Résout un chemin relatif ou absolu et retourne l'inode correspondant.
+ * 
+ * Cette fonction résout un chemin relatif ou absolu, traverse l'arborescence des répertoires,
+ * et retourne l'inode du fichier ou répertoire spécifié par le chemin. Si le chemin est invalide,
+ * la fonction retourne -1. Elle peut également retourner l'inode du parent si demandé.
+ * 
+ * @param part Partition contenant les informations du système de fichiers.
+ * @param path Le chemin à résoudre.
+ * @param parent_inode Si non NULL, retourne l'inode du parent du fichier ou répertoire spécifié.
+ * 
+ * @return L'inode du fichier ou répertoire spécifié, ou -1 si le chemin est invalide.
+ */
 int resolve_path(partition_t *part, const char *path, int *parent_inode) {
     // Diviser le chemin en composants
     path_components_t components;
@@ -714,7 +784,15 @@ int resolve_path(partition_t *part, const char *path, int *parent_inode) {
     return current_inode;
 }
 
-// Fonction pour extraire le nom de fichier d'un chemin
+/**
+ * @brief Fonction pour extraire le nom de fichier d'un chemin.
+ *
+ * Cette fonction extrait le nom de fichier à partir d'un chemin donné. Elle recherche
+ * le dernier caractère '/' et copie la sous-chaîne qui suit dans le buffer fourni.
+ *
+ * @param path Le chemin d'accès complet du fichier.
+ * @param filename Le buffer où sera copié le nom du fichier extrait.
+ */
 void extract_filename(const char *path, char *filename) {
     const char *last_slash = strrchr(path, '/');
     if (last_slash != NULL) {
@@ -725,7 +803,19 @@ void extract_filename(const char *path, char *filename) {
 }
 
 
-// Fonction améliorée pour déplacer un fichier avec support des chemins relatifs
+/**
+ * @brief Fonction pour déplacer un fichier d'un emplacement à un autre avec gestion des chemins relatifs.
+ *
+ * Cette fonction déplace un fichier depuis un emplacement source vers un emplacement de destination.
+ * Elle résout les chemins relatifs et effectue des vérifications d'autorisation pour s'assurer que l'opération
+ * peut être réalisée sans erreur.
+ *
+ * @param part La partition où se trouvent les fichiers.
+ * @param source_path Le chemin du fichier source à déplacer.
+ * @param dest_path Le chemin de destination où déplacer le fichier.
+ * @param mode Le mode d'opération (copie ou déplacement). Si mode est COPYMODE, l'opération sera une copie, sinon un déplacement.
+ * @return Retourne 0 si l'opération est réussie, -1 en cas d'erreur.
+ */
 int move_file_with_paths(partition_t *part, const char *source_path, const char *dest_path,int mode) {
     // Variables pour stocker les composants du chemin
     int source_parent_inode = -1;
@@ -897,6 +987,19 @@ int move_file_with_paths(partition_t *part, const char *source_path, const char 
     return 0;
 }
 
+/**
+ * @brief Fonction pour écrire des données dans un fichier.
+ *
+ * Cette fonction permet d'écrire des données dans un fichier. Si le fichier n'existe pas,
+ * il est créé. Les données sont écrites dans des blocs de taille fixe. Si le fichier existe,
+ * les anciens blocs sont libérés et de nouveaux blocs sont alloués si nécessaire.
+ *
+ * @param part La partition où se trouvent les fichiers.
+ * @param name Le nom du fichier dans lequel écrire.
+ * @param data Les données à écrire dans le fichier.
+ * @param size La taille des données à écrire.
+ * @return Le nombre d'octets écrits, ou -1 en cas d'erreur, ou -2 si les permissions sont insuffisantes.
+ */
 
 int write_to_file(partition_t *part, const char *name, const char *data, int size) {
     

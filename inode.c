@@ -1,7 +1,22 @@
+/**
+ * @file inode.c
+ * @brief Gestion des inodes : allocation et libération.
+ *
+ * Ce fichier contient les fonctions nécessaires pour allouer et libérer les inodes
+ * dans une partition simulée.
+ */
 #include "inode.h"
 
 
-// Fonction pour allouer un inode
+/**
+ * @brief Alloue un inode libre dans la partition.
+ * 
+ * Cherche un inode libre dans la bitmap, le marque comme utilisé,
+ * initialise sa structure et met à jour le superbloc.
+ * 
+ * @param part Pointeur vers la partition où allouer l'inode.
+ * @return L'indice de l'inode alloué en cas de succès, -1 en cas d'échec (plus d'inodes disponibles).
+ */
 int allocate_inode(partition_t *part) {
     // Chercher un inode libre
     for (int i = 0; i < MAX_INODES; i++) {
@@ -28,7 +43,16 @@ int allocate_inode(partition_t *part) {
     return -1;  // Pas d'inode libre
 }
 
-// Fonction pour libérer un inode
+
+/**
+ * @brief Libère un inode et tous les blocs associés dans la partition.
+ * 
+ * Marque l'inode comme libre dans la bitmap, libère les blocs de données directs
+ * ainsi que le bloc indirect s'il existe, et réinitialise la structure de l'inode.
+ * 
+ * @param part Pointeur vers la partition contenant l'inode.
+ * @param inode_num Numéro (indice) de l'inode à libérer.
+ */
 void free_inode(partition_t *part, int inode_num) {
     int byte_index = inode_num / 8;
     int bit_index = inode_num % 8;

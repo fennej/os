@@ -1,5 +1,13 @@
 #include "permission.h"
 
+/**
+ * @brief Vérifie si l'utilisateur courant possède une permission spécifique sur un fichier.
+ *
+ * @param part Pointeur vers la structure de la partition.
+ * @param inode_num Numéro de l'inode du fichier.
+ * @param perm_bit Bit de permission à vérifier (ex: lecture, écriture, exécution).
+ * @return 1 si la permission est accordée, 0 sinon.
+ */
 
 // Fonction pour vérifier les permissions
 int check_permission(partition_t *part, int inode_num, int perm_bit) {
@@ -37,7 +45,15 @@ int check_permission(partition_t *part, int inode_num, int perm_bit) {
     return (permission_mask & perm_bit) != 0;
 }
 
-// Fonction pour changer les permissions d'un fichier (chmod)
+/**
+ * @brief Modifie les permissions (mode) d'un fichier.
+ *
+ * @param part Pointeur vers la structure de la partition.
+ * @param name Nom du fichier.
+ * @param mode Nouveau mode de permissions (ex: 0644).
+ * @return 0 en cas de succès, -1 en cas d'erreur.
+ */
+
 int chmod_file(partition_t *part, const char *name, int mode) {
     // Trouver le fichier dans le répertoire courant
     int inode_num = find_file_in_dir(part, part->current_dir_inode, name);
@@ -66,7 +82,16 @@ int chmod_file(partition_t *part, const char *name, int mode) {
 }
 
 
-// Fonction pour changer le propriétaire et le groupe d'un fichier (chown)
+
+/**
+ * @brief Modifie le propriétaire et le groupe d'un fichier.
+ *
+ * @param part Pointeur vers la structure de la partition.
+ * @param name Nom du fichier.
+ * @param uid Nouvel identifiant utilisateur.
+ * @param gid Nouvel identifiant de groupe.
+ * @return 0 en cas de succès, -1 en cas d'erreur.
+ */
 int chown_file(partition_t *part, const char *name, int uid, int gid) {
     // Seul root peut changer le propriétaire
     if (part->current_user.id != 0) {
@@ -93,7 +118,14 @@ int chown_file(partition_t *part, const char *name, int uid, int gid) {
 }
 
 
-// Fonction pour changer d'utilisateur courant
+/**
+ * @brief Change l'utilisateur courant.
+ *
+ * @param part Pointeur vers la structure de la partition.
+ * @param uid Nouvel identifiant utilisateur.
+ * @param gid Nouvel identifiant de groupe.
+ * @return 0 en cas de succès, -1 en cas d'erreur.
+ */
 int switch_user(partition_t *part, int uid, int gid) {
     // En pratique, il faudrait vérifier si l'utilisateur existe dans un fichier passwd
     // et demander un mot de passe, mais pour ce prototype, on le fait simplement

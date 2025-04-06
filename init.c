@@ -1,6 +1,24 @@
+/**
+ * @file init.c
+ * @brief Initialisation de la partition et de ses composants.
+ *
+ * Ce fichier contient des fonctions pour initialiser une partition avec ses
+ * composants de base, comme le superbloc, les bitmaps, la table d'inodes et
+ * les répertoires de base.
+ */
+
 #include "init.h"
 
-
+/**
+ * @brief Initialise les structures d'une partition.
+ * 
+ * Cette fonction initialise les éléments essentiels d'une partition : le superbloc,
+ * les bitmaps des blocs et des inodes, la table des inodes, ainsi que les entrées
+ * de répertoire de base (comme le répertoire racine). Elle configure également les
+ * attributs de la partition, tels que l'utilisateur actuel et le répertoire courant.
+ * 
+ * @param part Pointeur vers la partition à initialiser.
+ */
 void init_partition(partition_t *part) {
 
 

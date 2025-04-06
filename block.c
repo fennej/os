@@ -1,8 +1,24 @@
+/**
+ * @file block.c
+ * @brief Gestion des blocs dans une partition.
+ *
+ * Ce fichier contient les fonctions permettant d'allouer et de libérer des blocs
+ * dans une partition, ainsi que la gestion des bitmaps associés.
+ */
+
 #include "block.h"
 
 
 
-// Fonction pour libérer un bloc
+/**
+ * @brief Libère un bloc dans la partition.
+ * 
+ * Cette fonction marque un bloc comme libre dans le bitmap des blocs, réinitialise
+ * son contenu à zéro, et met à jour le nombre de blocs libres dans le superbloc.
+ * 
+ * @param part Pointeur vers la partition contenant le bloc à libérer.
+ * @param block_num Numéro du bloc à libérer.
+ */
 void free_block(partition_t *part, int block_num) {
     int byte_index = block_num / 8;
     int bit_index = block_num % 8;
@@ -16,7 +32,18 @@ void free_block(partition_t *part, int block_num) {
 }
 
 
-// Fonction pour allouer un bloc
+/**
+ * @brief Alloue un bloc dans la partition.
+ * 
+ * Cette fonction recherche un bloc libre dans la partition, le marque comme
+ * utilisé dans le bitmap des blocs, initialise son contenu à zéro, et met à jour
+ * le nombre de blocs libres dans le superbloc. La fonction commence la recherche
+ * à partir de l'offset réservé aux utilisateurs.
+ * 
+ * @param part Pointeur vers la partition où allouer le bloc.
+ * @return int Le numéro logique du bloc alloué, ou -1 si aucun bloc libre n'est
+ *         disponible.
+ */
 int allocate_block(partition_t *part) {
     // Start search from USERSAPCE_OFSET but return logical block numbers
     for (int i = USERSAPCE_OFSET; i < MAX_BLOCKS; i++) {

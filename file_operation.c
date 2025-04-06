@@ -1,7 +1,28 @@
+/**
+ * @file file_operation.c
+ * @brief Opérations sur les fichiers et répertoires dans une partition.
+ *
+ * Ce fichier contient les fonctions permettant de créer des fichiers, de les
+ * rechercher dans un répertoire et d'effectuer diverses opérations de gestion
+ * des fichiers dans une partition.
+ */
+
 #include "file_operation.h"
 
-// Fonction pour trouver un fichier dans un répertoire
-int find_file_in_dir(partition_t *part, int dir_inode, const char *name) {
+/**
+ * @brief Recherche un fichier dans un répertoire donné.
+ * 
+ * Cette fonction parcourt les entrées d'un répertoire pour trouver un fichier
+ * portant le nom spécifié. Si le fichier est trouvé, elle retourne le numéro
+ * d'inode du fichier. Sinon, elle retourne -1.
+ * 
+ * @param part Pointeur vers la partition contenant le répertoire.
+ * @param dir_inode Numéro d'inode du répertoire à rechercher.
+ * @param name Nom du fichier à rechercher.
+ * @return int Le numéro d'inode du fichier trouvé, ou -1 si le fichier n'est pas trouvé.
+ */
+
+ int find_file_in_dir(partition_t *part, int dir_inode, const char *name) {
     if (!(part->inodes[dir_inode].mode & 040000)) {  // Vérifier si c'est un répertoire
         return -1;
     }
@@ -43,7 +64,19 @@ int find_file_in_dir(partition_t *part, int dir_inode, const char *name) {
     return -1;  // Fichier non trouvé
 }
 
-// Fonction pour créer un fichier
+/**
+ * @brief Crée un fichier dans le répertoire courant.
+ * 
+ * Cette fonction crée un nouveau fichier dans le répertoire courant en allouant
+ * un nouvel inode, en initialisant son contenu et en ajoutant une entrée pour
+ * ce fichier dans le répertoire. Elle vérifie également les permissions et
+ * l'existence préalable du fichier.
+ * 
+ * @param part Pointeur vers la partition où créer le fichier.
+ * @param name Nom du fichier à créer.
+ * @param mode Mode du fichier (permissions et type, par exemple répertoire ou fichier ordinaire).
+ * @return int Le numéro d'inode du fichier créé, ou -1 en cas d'erreur.
+ */
 int create_file(partition_t *part, const char *name, int mode) {
     // Vérifier les permissions du répertoire courant pour l'écriture (bit 2)
     if (!check_permission(part, part->current_dir_inode, 2)) {
@@ -123,7 +156,19 @@ int create_file(partition_t *part, const char *name, int mode) {
 }
 
 
-// Fonction pour créer un lien symbolique
+/**
+ * @brief Crée un lien symbolique dans le répertoire courant.
+ * 
+ * Cette fonction crée un lien symbolique pointant vers un fichier cible. Elle vérifie 
+ * les permissions nécessaires et si le lien ou la cible existe déjà. Un nouvel inode 
+ * est alloué pour le lien symbolique et le chemin de la cible est stocké dans le 
+ * bloc de données du lien.
+ * 
+ * @param part Pointeur vers la partition où créer le lien symbolique.
+ * @param link_name Nom du lien symbolique à créer.
+ * @param target_name Nom du fichier cible vers lequel le lien symbolique pointe.
+ * @return int Le numéro d'inode du lien symbolique créé, ou -1 en cas d'erreur.
+ */
 int create_symlink(partition_t *part, const char *link_name, const char *target_name) {
     // Vérifier les permissions du répertoire courant pour l'écriture (bit 2)
     if (!check_permission(part, part->current_dir_inode, 2)) {
@@ -187,7 +232,20 @@ int create_symlink(partition_t *part, const char *link_name, const char *target_
 }
 
 
-// Fonction pour supprimer un fichier
+
+/**
+ * @brief Supprime un fichier ou un répertoire dans le répertoire courant.
+ * 
+ * Cette fonction supprime un fichier ou un répertoire dans le répertoire courant,
+ * après avoir vérifié les permissions nécessaires et que le fichier ou répertoire
+ * n'est pas vide (si c'est un répertoire). Elle décrémente également le nombre de 
+ * liens de l'inode et libère les ressources associées lorsque le nombre de liens
+ * atteint 0.
+ * 
+ * @param part Pointeur vers la partition contenant le fichier ou répertoire à supprimer.
+ * @param name Nom du fichier ou répertoire à supprimer.
+ * @return int 0 si la suppression a réussi, -1 en cas d'erreur.
+ */
 int delete_file(partition_t *part, const char *name) {
     // Ne pas permettre la suppression de "." et ".."
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
@@ -247,7 +305,19 @@ int delete_file(partition_t *part, const char *name) {
     return 0;
 }
 
-// Fonction pour résoudre un chemin symbolique
+/**
+ * @brief Résout un lien symbolique en suivant les redirections jusqu'à ce qu'un fichier ou répertoire réel soit atteint.
+ * 
+ * Cette fonction limite la profondeur de résolution à 10 pour éviter les boucles infinies.
+ * Si un lien symbolique est trouvé, la fonction suit la cible du lien jusqu'à ce qu'un fichier
+ * ou répertoire réel soit atteint. Si un lien corrompu est détecté ou si un trop grand nombre
+ * de niveaux de liens symboliques est rencontré, la fonction retourne une erreur.
+ * 
+ * @param part Partition contenant les informations sur les inodes et l'espace de données.
+ * @param inode_num Numéro de l'inode du fichier ou répertoire à partir duquel commencer la résolution.
+ * 
+ * @return L'inode correspondant à la cible du lien symbolique, ou -1 en cas d'erreur.
+ */
 int resolve_symlink(partition_t *part, int inode_num) {
     int max_depth = 10;  // Limiter la profondeur pour éviter les boucles infinies
     
@@ -279,8 +349,20 @@ int resolve_symlink(partition_t *part, int inode_num) {
     return -1;
 }
 
-// Fonction pour résoudre un chemin absolu et retourner l'inode correspondant
-// Retourne l'inode si trouvé, -1 si non trouvé
+/**
+ * @brief Résout un chemin absolu et retourne l'inode correspondant au fichier ou répertoire.
+ * 
+ * Cette fonction résout un chemin absolu (commençant par '/') en parcourant les répertoires
+ * et en suivant les liens symboliques éventuels. Si un lien symbolique est rencontré,
+ * il est résolu jusqu'à ce qu'un fichier réel soit trouvé. La fonction vérifie également
+ * les permissions nécessaires pour accéder aux répertoires.
+ * 
+ * @param part Partition contenant les informations sur les inodes et l'espace de données.
+ * @param path Le chemin absolu à résoudre.
+ * 
+ * @return L'inode correspondant au fichier ou répertoire à la fin du chemin, ou -1 en cas d'erreur.
+ */
+
 int resolve_pathAB(partition_t *part, const char *path) {
     // Vérifier si le chemin est absolu (commence par '/')
     if (path == NULL || path[0] != '/') {
@@ -404,6 +486,19 @@ int resolve_pathAB(partition_t *part, const char *path) {
 }
 
 
+/**
+ * @brief Résout un lien symbolique en suivant sa cible.
+ * 
+ * Cette fonction vérifie si un inode correspond à un lien symbolique. Si oui, elle résout
+ * le lien symbolique et retourne l'inode du fichier cible. Sinon, elle retourne l'inode
+ * d'origine.
+ * 
+ * @param part Partition contenant les informations sur les inodes et l'espace de données.
+ * @param symlink_inode Numéro de l'inode du lien symbolique à résoudre.
+ * 
+ * @return L'inode de la cible du lien symbolique ou l'inode d'origine si ce n'est pas un lien symbolique, ou -1 en cas d'erreur.
+ */
+
 int resolve_symlink2(partition_t *part, int symlink_inode) {
     // Check if it's a symlink
     if (!(part->inodes[symlink_inode].mode & 0120000)) {
@@ -421,6 +516,20 @@ int resolve_symlink2(partition_t *part, int symlink_inode) {
     return find_file_in_dir(part, part->current_dir_inode, target_path);
 }
 
+/**
+ * @brief Lit le contenu d'un fichier et le copie dans un buffer.
+ * 
+ * Cette fonction lit un fichier à partir du système de fichiers et le copie dans un tampon. 
+ * Si le fichier est un lien symbolique, il est d'abord résolu. Elle vérifie également si 
+ * l'utilisateur dispose des permissions nécessaires pour lire le fichier.
+ * 
+ * @param part Partition contenant les informations sur les inodes et l'espace de données.
+ * @param name Le nom du fichier à lire.
+ * @param buffer Le tampon où les données lues seront copiées.
+ * @param max_size La taille maximale à lire.
+ * 
+ * @return Le nombre d'octets effectivement lus, ou -1 si le fichier n'a pas été trouvé, ou -2 si les permissions sont insuffisantes.
+ */
 
 int read_from_file(partition_t *part, const char *name, char *buffer, int max_size) {
 
@@ -463,7 +572,15 @@ int read_from_file(partition_t *part, const char *name, char *buffer, int max_si
     return size_to_read - remaining;
 }
 
-
+/**
+ * @brief Affiche le contenu d'un fichier dans la sortie standard (simule la commande 'cat').
+ * 
+ * Cette fonction utilise `read_from_file` pour lire le contenu d'un fichier et l'afficher à l'écran.
+ * Si une erreur se produit, un message d'erreur est affiché.
+ * 
+ * @param part Partition contenant les informations sur les inodes et l'espace de données.
+ * @param name Le nom du fichier à afficher.
+ */
 
 void cat_command(partition_t *part, const char *name) {
     // Tampon pour stocker le contenu du fichier
@@ -483,6 +600,19 @@ void cat_command(partition_t *part, const char *name) {
 }
 
 
+/**
+ * @brief Écrit du contenu dans un fichier, simule la commande 'cat >'.
+ * 
+ * Cette fonction utilise une fonction d'écriture pour placer le contenu dans un fichier donné.
+ * Si une erreur se produit lors de l'écriture ou si les permissions sont insuffisantes,
+ * un message d'erreur est affiché.
+ * 
+ * @param part Partition contenant les informations sur les inodes et l'espace de données.
+ * @param name Le nom du fichier où le contenu doit être écrit.
+ * @param content Le contenu à écrire dans le fichier.
+ * 
+ * @return 0 si l'écriture a réussi, ou 1 si une erreur est survenue.
+ */
 
 int cat_write_command(partition_t *part, const char *name, const char *content) {
     int bytes_written = write_to_file(part, name, content, strlen(content));
@@ -500,7 +630,17 @@ int cat_write_command(partition_t *part, const char *name, const char *content) 
 }
 
 
-// Fonction pour créer un lien en dur
+/**
+ * @brief Crée un lien dur vers un fichier existant.
+ * 
+ * Cette fonction crée un lien dur dans un répertoire donné pointant vers un fichier existant. 
+ * Un lien dur est un autre nom pour un fichier sur le disque, qui fait référence au même inode.
+ * 
+ * @param part Partition où le fichier et le répertoire sont situés.
+ * @param target_path Chemin vers le fichier cible vers lequel créer le lien dur.
+ * @param link_path Chemin du nouveau lien dur à créer.
+ * @return int Retourne 0 si la création du lien dur est réussie, -1 en cas d'erreur.
+ */
 int create_hard_link(partition_t *part, const char *target_path, const char *link_path) {
     int target_parent_inode = -1;
     int link_parent_inode = -1;
@@ -679,7 +819,17 @@ int create_hard_link(partition_t *part, const char *target_path, const char *lin
 }
 
 
-// Fonction pour supprimer récursivement un fichier ou un répertoire
+/**
+ * @brief Supprime un fichier ou un répertoire de manière récursive.
+ * 
+ * Cette fonction supprime un fichier ou un répertoire et son contenu, si c'est un répertoire, de manière récursive. 
+ * Pour un répertoire, cette fonction va d'abord supprimer les fichiers et sous-répertoires avant de supprimer le répertoire lui-même.
+ * 
+ * @param part Partition contenant les fichiers et répertoires à supprimer.
+ * @param path Chemin du fichier ou répertoire à supprimer.
+ * @return int Retourne 0 si la suppression est réussie, -1 en cas d'erreur.
+ */
+
 int delete_recursive(partition_t *part, const char *path) {
     int parent_inode = -1;
     int target_inode = resolve_path(part, path, &parent_inode);
